@@ -41,9 +41,13 @@ const eventsPath = path.join(process.cwd(), "events");
 for (const file of fs.readdirSync(eventsPath)) {
   if (file.endsWith(".js")) {
     const event = await import(`./events/${file}`);
-    client.on(event.default.name, event.default.execute.bind(null, client));
+
+    if (event.default.once) {
+      client.once(event.default.name, (...args) => event.default.execute(...args, client));
+    } else {
+      client.on(event.default.name, (...args) => event.default.execute(...args, client));
   }
 }
 
 client.login(process.env.TOKEN);
-
+}

@@ -4,16 +4,13 @@ const fs = require("fs");
 module.exports = {
     name: "hug",
     description: "Send someone a hug!",
-    async execute(message, args) {
+    async execute(message) {
 
         const hugger = message.author;
         const user = message.mentions.users.first();
 
-        if (!user)
-            return message.reply("Please mention someone to hug 💗");
-
-        if (user.id === hugger.id)
-            return message.reply("You can’t hug yourself… but I believe in you 💞");
+        if (!user) return message.reply("Please mention someone to hug 💗");
+        if (user.id === hugger.id) return message.reply("You can’t hug yourself 💞");
 
         // Load hug data
         let hugData = {};
@@ -23,10 +20,8 @@ module.exports = {
 
         if (!hugData[hugger.id]) hugData[hugger.id] = 0;
         hugData[hugger.id] += 1;
-
         fs.writeFileSync("./hugData.json", JSON.stringify(hugData, null, 2));
 
-        // Embed
         const embed = new EmbedBuilder()
             .setColor("#ffc1cc")
             .setTitle("🤗 A Hug Appears!")
@@ -38,10 +33,9 @@ module.exports = {
             })
             .setTimestamp();
 
-        // Hug Back Button
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
-                .setCustomId(`hugback_${hugger.id}_${user.id}`)
+                .setCustomId(`hugback_${hugger.id}_${user.id}_${message.id}`)
                 .setLabel("Hug Back 💞")
                 .setStyle(ButtonStyle.Secondary)
         );

@@ -1,0 +1,21 @@
+# This is the top-most EditorConfig file
+root = true
+
+# All files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = tab
+indent_size = 4
+
+# Specific for Ruby files (if you wanted to switch to spaces for Ruby only)
+[*.rb]
+indent_style = tab
+indent_size = 4
+
+# YAML files (always require spaces, tabs will break them)
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 4

@@ -1,0 +1,240 @@
+{
+  "users": {
+    "1472509438010065070": {
+      "1398450651297747065": {
+        "xp": 25,
+        "level": 2,
+        "last_xp_at": "2026-02-24T09:34:35-05:00"
+      },
+      "266358927401287680": {
+        "xp": 30,
+        "level": 2,
+        "last_xp_at": "2026-02-24T09:33:32-05:00"
+      },
+      "183685881897549824": {
+        "xp": 5,
+        "level": 2,
+        "last_xp_at": "2026-02-24T09:32:49-05:00"
+      }
+    }
+  },
+  "coins": {
+    "1398450651297747065": 134,
+    "183685881897549824": 11,
+    "266358927401287680": 975
+  },
+  "collections": {
+    "1398450651297747065": {
+      "Shirakami Fubuki": {
+        "rarity": "rare",
+        "count": 3
+      },
+      "Filian": {
+        "rarity": "common",
+        "count": 6
+      },
+      "Obkatiekat": {
+        "rarity": "common",
+        "count": 2
+      },
+      "Elira Pendora": {
+        "rarity": "common",
+        "count": 6
+      },
+      "Gawr Gura": {
+        "rarity": "legendary",
+        "count": 2
+      },
+      "Zentreya": {
+        "rarity": "common",
+        "count": 2
+      },
+      "Silvervale": {
+        "rarity": "common",
+        "count": 4
+      },
+      "Nihmune": {
+        "rarity": "rare",
+        "count": 3
+      },
+      "Apricot": {
+        "rarity": "rare",
+        "count": 1
+      },
+      "Finana Ryugu": {
+        "rarity": "common",
+        "count": 2
+      },
+      "Vox Akuma": {
+        "rarity": "rare",
+        "count": 1
+      },
+      "Bao": {
+        "rarity": "common",
+        "count": 1
+      },
+      "Shylily": {
+        "rarity": "rare",
+        "count": 1
+      }
+    },
+    "183685881897549824": {
+      "Bao": {
+        "rarity": "common",
+        "count": 5
+      },
+      "Shylily": {
+        "rarity": "rare",
+        "count": 2
+      },
+      "Shirakami Fubuki": {
+        "rarity": "rare",
+        "count": 3
+      },
+      "Zentreya": {
+        "rarity": "common",
+        "count": 2
+      },
+      "CottontailVA": {
+        "rarity": "common",
+        "count": 4
+      },
+      "Obkatiekat": {
+        "rarity": "common",
+        "count": 3
+      },
+      "Finana Ryugu": {
+        "rarity": "common",
+        "count": 4
+      },
+      "Mori Calliope": {
+        "rarity": "legendary",
+        "count": 1
+      },
+      "Filian": {
+        "rarity": "common",
+        "count": 3
+      },
+      "Vox Akuma": {
+        "rarity": "rare",
+        "count": 1
+      },
+      "Silvervale": {
+        "rarity": "common",
+        "count": 2
+      },
+      "Elira Pendora": {
+        "rarity": "common",
+        "count": 1
+      },
+      "Kuzuha": {
+        "rarity": "legendary",
+        "count": 1
+      }
+    },
+    "266358927401287680": {
+      "Kuzuha": {
+        "rarity": "legendary",
+        "count": 2
+      },
+      "Shirakami Fubuki": {
+        "rarity": "rare",
+        "count": 1
+      },
+      "CottontailVA": {
+        "rarity": "common",
+        "count": 2
+      },
+      "Kizuna AI": {
+        "rarity": "legendary",
+        "count": 1
+      },
+      "Elira Pendora": {
+        "rarity": "common",
+        "count": 3
+      },
+      "Nihmune": {
+        "rarity": "rare",
+        "count": 4
+      },
+      "Apricot": {
+        "rarity": "rare",
+        "count": 1
+      },
+      "Zentreya": {
+        "rarity": "common",
+        "count": 2
+      },
+      "Finana Ryugu": {
+        "rarity": "common",
+        "count": 1
+      },
+      "Silvervale": {
+        "rarity": "common",
+        "count": 2
+      },
+      "Bao": {
+        "rarity": "common",
+        "count": 1
+      }
+    }
+  },
+  "interactions": {
+    "1398450651297747065": {
+      "hug": {
+        "sent": 1,
+        "received": 1
+      },
+      "slap": {
+        "sent": 1,
+        "received": 0
+      }
+    },
+    "183685881897549824": {
+      "hug": {
+        "sent": 1,
+        "received": 1
+      },
+      "slap": {
+        "sent": 0,
+        "received": 0
+      }
+    },
+    "266358927401287680": {
+      "hug": {
+        "sent": 0,
+        "received": 0
+      },
+      "slap": {
+        "sent": 1,
+        "received": 2
+      }
+    }
+  },
+  "economy_cooldowns": {
+    "1398450651297747065": {
+      "daily_at": "2026-02-24T07:10:27-05:00",
+      "work_at": "2026-02-24T09:21:37-05:00",
+      "stream_at": "2026-02-24T09:21:58-05:00",
+      "post_at": "2026-02-24T09:21:35-05:00",
+      "collab_at": "2026-02-24T09:22:06-05:00"
+    },
+    "183685881897549824": {
+      "daily_at": "2026-02-24T07:10:35-05:00",
+      "work_at": "2026-02-24T09:22:54-05:00",
+      "stream_at": "2026-02-24T09:25:03-05:00",
+      "post_at": "2026-02-24T09:28:39-05:00",
+      "collab_at": "2026-02-24T09:25:13-05:00"
+    },
+    "266358927401287680": {
+      "daily_at": "2026-02-24T07:22:16-05:00",
+      "work_at": "2026-02-24T09:21:08-05:00",
+      "stream_at": "2026-02-24T09:25:36-05:00",
+      "post_at": "2026-02-24T09:28:25-05:00",
+      "collab_at": "2026-02-24T09:25:20-05:00"
+    }
+  },
+  "levelup_settings": {
+    "1472509438010065070": false
+  }
+}

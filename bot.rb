@@ -27,9 +27,9 @@ SHOP_PRICES = {
 
 # Duplicate Sell Values (10% of buy price)
 SELL_PRICES = {
-  'common'    => 100,
-  'rare'      => 500,
-  'legendary' => 2_500
+  'common'    => 50,
+  'rare'      => 250,
+  'legendary' => 1_000
 }.freeze
 
 DAILY_REWARD      = 500
@@ -244,6 +244,7 @@ interactions       = Hash.new do |h, k|
   }
 end
 economy_cooldowns  = Hash.new { |h, k| h[k] = { 'daily_at' => nil, 'work_at' => nil } }
+summon_cooldowns = {}
 levelup_settings   = {} # server_id => true/false
 
 # Tracks active bombs to prevent multiple defuses or late explosions
@@ -618,7 +619,7 @@ def build_shop_home(user_id)
                       "🌟 **Legendary:** #{SHOP_PRICES['legendary']} coins *(Sells for #{SELL_PRICES['legendary']})*\n\n" \
                       "Use `#{PREFIX}buy <Character Name>` to purchase one!"
   embed.color = NEON_COLORS.sample
-  embed.image = Discordrb::Webhooks::EmbedImage.new(url: 'https://media.discordapp.net/attachments/1475889769820192861/1475906143846006794/hk4dryof6mtf1.jpeg')
+  embed.image = Discordrb::Webhooks::EmbedImage.new(url: 'https://media.discordapp.net/attachments/1475890017443516476/1476244926638592050/d60459-53-0076f9af74811878db01-0.jpg?ex=69a06bb9&is=699f1a39&hm=a5769b33a3b669e67f439bad467b90c1a9681f8d3a1e975bb048b79d521ec929&=&format=webp')
 
   view = Discordrb::Components::View.new do |v|
     v.row do |r|
@@ -1285,9 +1286,9 @@ end
 
 bot.command(:cooldowns, description: 'Check your active timers for economy commands', category: 'Economy') do |event|
   uid = event.user.id
-  cd  = economy_cooldowns[uid]
+  cd  = economy_cooldowns[uid] || {}
 
-  # Helper method to calculate future ready time and format as a live Discord timestamp
+  # Helper method for economy commands (calculates future time)
   check_cd = ->(last_used, cooldown_duration) do
     if last_used && (Time.now - last_used) < cooldown_duration
       ready_time = last_used + cooldown_duration
@@ -1297,13 +1298,21 @@ bot.command(:cooldowns, description: 'Check your active timers for economy comma
     end
   end
 
+  # Check the summon cooldown (already stores future time)
+  summon_ready = if summon_cooldowns[uid] && Time.now < summon_cooldowns[uid]
+                   "Ready <t:#{summon_cooldowns[uid].to_i}:R>"
+                 else
+                   "**Ready!**"
+                 end
+
   # Package up the fields
   cd_fields = [
     { name: '!daily', value: check_cd.call(cd['daily_at'], DAILY_COOLDOWN), inline: true },
     { name: '!work', value: check_cd.call(cd['work_at'], WORK_COOLDOWN), inline: true },
     { name: '!stream', value: check_cd.call(cd['stream_at'], STREAM_COOLDOWN), inline: true },
     { name: '!post', value: check_cd.call(cd['post_at'], POST_COOLDOWN), inline: true },
-    { name: '!collab', value: check_cd.call(cd['collab_at'], COLLAB_COOLDOWN), inline: true }
+    { name: '!collab', value: check_cd.call(cd['collab_at'], COLLAB_COOLDOWN), inline: true },
+    { name: '!summon', value: summon_ready, inline: true } # <--- Added Summon here!
   ]
 
   # Send it straight to the channel using your updated helper!
@@ -1379,8 +1388,27 @@ end
 # GACHA / CHARACTER SUMMONS
 # =========================
 
-bot.command(:summon, description: 'Spend coins to summon a character from the weekly banner!', category: 'Fun') do |event|
+bot.command(:summon, description: 'Roll the gacha!', category: 'Gacha') do |event|
   uid = event.user.id
+
+  # =========================
+  # COOLDOWN CHECK
+  # =========================
+  if summon_cooldowns[uid] && Time.now < summon_cooldowns[uid]
+    ready_time = summon_cooldowns[uid].to_i
+    
+    embed = Discordrb::Webhooks::Embed.new(
+      title: '⏳ Portal Recharging',
+      description: "Your gacha energy is depleted!\nThe portal will be ready <t:#{ready_time}:R>.",
+      color: 0xFF0000 # A nice red to indicate a cooldown!
+    )
+    
+    # Send the embed and reply directly to the user's command message
+    event.channel.send_message(nil, false, embed, nil, nil, event.message)
+    
+    next
+  end
+  # =========================
 
   if coins[uid] < SUMMON_COST
     send_embed(
@@ -1422,6 +1450,10 @@ bot.command(:summon, description: 'Spend coins to summon a character from the we
     ],
     image: gif_url
   )
+
+  # Start the 10-minute (600 seconds) cooldown!
+  summon_cooldowns[uid] = Time.now + 600
+  
   nil
 end
 

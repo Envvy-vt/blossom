@@ -2,9 +2,9 @@
   "users": {
     "1472509438010065070": {
       "1398450651297747065": {
-        "xp": 370,
+        "xp": 530,
         "level": 6,
-        "last_xp_at": "2026-02-25T11:02:56-05:00"
+        "last_xp_at": "2026-02-25T12:12:59-05:00"
       },
       "266358927401287680": {
         "xp": 170,
@@ -52,9 +52,9 @@
         "last_xp_at": "2026-02-25T06:38:32-05:00"
       },
       "349459427272818699": {
-        "xp": 80,
-        "level": 1,
-        "last_xp_at": "2026-02-25T09:52:44-05:00"
+        "xp": 0,
+        "level": 2,
+        "last_xp_at": "2026-02-25T11:49:43-05:00"
       },
       "1472695781759652012": {
         "xp": 30,
@@ -71,7 +71,7 @@
     }
   },
   "coins": {
-    "1398450651297747065": 159,
+    "1398450651297747065": 6525,
     "183685881897549824": 64,
     "266358927401287680": 3778,
     "1345151337876426912": 34,
@@ -81,70 +81,70 @@
     "325471423508250625": 359,
     "981755777754755122": 90,
     "452679089929846784": 1381,
-    "349459427272818699": 80,
+    "349459427272818699": 100,
     "1472695781759652012": 30
   },
   "collections": {
     "1398450651297747065": {
       "Shirakami Fubuki": {
         "rarity": "rare",
-        "count": 7
+        "count": 1
       },
       "Filian": {
         "rarity": "common",
-        "count": 10
+        "count": 1
       },
       "Obkatiekat": {
         "rarity": "common",
-        "count": 6
+        "count": 1
       },
       "Elira Pendora": {
         "rarity": "common",
-        "count": 13
+        "count": 1
       },
       "Gawr Gura": {
         "rarity": "legendary",
-        "count": 3
+        "count": 1
       },
       "Zentreya": {
         "rarity": "common",
-        "count": 7
+        "count": 1
       },
       "Silvervale": {
         "rarity": "common",
-        "count": 9
+        "count": 1
       },
       "Nihmune": {
         "rarity": "rare",
-        "count": 4
+        "count": 1
       },
       "Apricot": {
         "rarity": "rare",
-        "count": 4
+        "count": 1
       },
       "Finana Ryugu": {
         "rarity": "common",
-        "count": 10
+        "count": 1
       },
       "Vox Akuma": {
         "rarity": "rare",
-        "count": 8
+        "count": 2
       },
       "Bao": {
         "rarity": "common",
-        "count": 7
+        "count": 1
       },
       "Shylily": {
         "rarity": "rare",
-        "count": 2
+        "count": 1
       },
       "CottontailVA": {
         "rarity": "common",
-        "count": 6
+        "count": 1
       },
       "Hoshimachi Suisei": {
         "rarity": "rare",
-        "count": 3
+        "count": 1
       },
       "Ike Eveland": {
         "rarity": "rare",
@@ -152,27 +152,27 @@
       },
       "Enna Alouette": {
         "rarity": "common",
-        "count": 6
+        "count": 1
       },
       "Rosemi Lovelock": {
         "rarity": "common",
-        "count": 8
+        "count": 1
       },
       "Pomu Rainpuff": {
         "rarity": "common",
-        "count": 5
+        "count": 1
       },
       "Shu Yamino": {
         "rarity": "common",
-        "count": 7
+        "count": 1
       },
       "Millie Parfait": {
         "rarity": "common",
-        "count": 3
+        "count": 1
       },
       "Luca Kaneshiro": {
         "rarity": "common",
-        "count": 7
+        "count": 1
       },
       "Inugami Korone": {
         "rarity": "legendary",
@@ -180,17 +180,25 @@
       },
       "Mysta Rias": {
         "rarity": "rare",
-        "count": 2
+        "count": 1
       },
       "Hakos Baelz": {
         "rarity": "rare",
-        "count": 2
+        "count": 1
       },
       "Mori Calliope": {
         "rarity": "legendary",
-        "count": 3
+        "count": 1
       },
       "Nanashi Mumei": {
+        "rarity": "rare",
+        "count": 1
+      },
+      "Ironmouse": {
+        "rarity": "legendary",
+        "count": 1
+      },
+      "Kobo Kanaeru": {
         "rarity": "rare",
         "count": 1
       }
@@ -569,9 +577,9 @@
   "economy_cooldowns": {
     "1398450651297747065": {
       "daily_at": "2026-02-25T08:52:59-05:00",
-      "work_at": "2026-02-25T10:27:08-05:00",
-      "stream_at": "2026-02-25T10:05:27-05:00",
-      "post_at": "2026-02-25T10:27:09-05:00",
+      "work_at": "2026-02-25T12:09:11-05:00",
+      "stream_at": "2026-02-25T12:09:13-05:00",
+      "post_at": "2026-02-25T12:09:15-05:00",
       "collab_at": "2026-02-25T09:03:21-05:00"
     },
     "183685881897549824": {

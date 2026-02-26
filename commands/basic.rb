@@ -84,12 +84,64 @@ bot.command(:about, description: 'Learn more about Blossom and her creator!', ca
 end
 
 bot.command(:hug, description: 'Send a hug with a random GIF', category: 'Fun') do |event|
-  interaction_embed(event, 'hug', HUG_GIFS)
+  target = event.message.mentions.first
+  
+  if target && target.id == event.bot.profile.id
+    # Double DB update
+    DB.add_interaction(event.user.id, 'hug', 'sent')
+    DB.add_interaction(target.id, 'hug', 'received')
+    DB.add_interaction(target.id, 'hug', 'sent')
+    DB.add_interaction(event.user.id, 'hug', 'received')
+
+    actor_stats = DB.get_interactions(event.user.id)['hug']
+    bot_stats   = DB.get_interactions(target.id)['hug']
+
+    fields = [
+      { name: "#{event.user.name}'s Hugs", value: "Sent: **#{actor_stats['sent']}**\nReceived: **#{actor_stats['received']}**", inline: true },
+      { name: "Blossom's Hugs", value: "Sent: **#{bot_stats['sent']}**\nReceived: **#{bot_stats['received']}**", inline: true }
+    ]
+
+    send_embed(
+      event,
+      title: "🫂 Hugs for Blossom!",
+      description: "Aww, thanks for the love, #{event.user.mention}! Chat's been crazy today, I needed that.\n\n*Blossom hugs you back tightly!*",
+      fields: fields,
+      image: HUG_GIFS.sample # <--- Now she sends a GIF back!
+    )
+  else
+    interaction_embed(event, 'hug', HUG_GIFS)
+  end
   nil
 end
 
 bot.command(:slap, description: 'Send a playful slap with a random GIF', category: 'Fun') do |event|
-  interaction_embed(event, 'slap', SLAP_GIFS)
+  target = event.message.mentions.first
+  
+  if target && target.id == event.bot.profile.id
+    # Double DB update
+    DB.add_interaction(event.user.id, 'slap', 'sent')
+    DB.add_interaction(target.id, 'slap', 'received')
+    DB.add_interaction(target.id, 'slap', 'sent')
+    DB.add_interaction(event.user.id, 'slap', 'received')
+
+    actor_stats = DB.get_interactions(event.user.id)['slap']
+    bot_stats   = DB.get_interactions(target.id)['slap']
+
+    fields = [
+      { name: "#{event.user.name}'s Slaps", value: "Sent: **#{actor_stats['sent']}**\nReceived: **#{actor_stats['received']}**", inline: true },
+      { name: "Blossom's Slaps", value: "Sent: **#{bot_stats['sent']}**\nReceived: **#{bot_stats['received']}**", inline: true }
+    ]
+
+    send_embed(
+      event,
+      title: "💢 Bot Abuse Detected!",
+      description: "Hey! #{event.user.mention} just slapped me?! Chat, clip that! That is literal bot abuse.\n\n*Blossom smacks you right back!*",
+      fields: fields,
+      image: SLAP_GIFS.sample # <--- Now she sends a GIF back!
+    )
+  else
+    interaction_embed(event, 'slap', SLAP_GIFS)
+  end
   nil
 end
 

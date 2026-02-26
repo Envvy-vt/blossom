@@ -311,9 +311,8 @@ end
 bot = Discordrb::Commands::CommandBot.new(
   token:   TOKEN,
   prefix:  PREFIX,
-  intents: %i[server_messages server_members]
+  intents: %i[servers server_messages server_members]
 )
-
 # =========================
 # 6. LOAD COMMANDS
 # =========================
@@ -335,18 +334,16 @@ bot.ready do
   # Spin up a background thread to rotate her status every 30 seconds
   Thread.new do
     loop do
-      # Status 1: "Playing !help in the Arcade 🕹️"
+
       bot.playing = "#{PREFIX}help in the Arcade 🕹️"
       sleep 30
 
-      # Status 2: "Playing in 3 servers 🔴"
       server_count = bot.servers.size
-      bot.playing = "in #{server_count} servers 🔴"
+      bot.playing = "in #{server_count} servers 🔴| b!"
       sleep 30
 
-      # Status 3: "Playing with 150 chatters 🎰"
       user_count = DB.get_total_users
-      bot.playing = "with #{user_count} chatters 🎰"
+      bot.playing = "with #{user_count} chatters 🎰| b!"
       sleep 30
     end
   end

@@ -130,13 +130,13 @@ RARITY_TABLE = [
 ].freeze
 
 HUG_GIFS = [
-  'https://media.giphy.com/media/l2QDM9Jnim1YVILXa/giphy.gif',
-  'https://media.giphy.com/media/od5H3PmEG5EVq/giphy.gif',
-  'https://media.giphy.com/media/wnsgren9NtITS/giphy.gif'
+  'https://media.discordapp.net/attachments/1475890017443516476/1476608672657440861/hug1.gif?ex=69a1be7d&is=69a06cfd&hm=42f82f2c0f7ed57b6fd004a73018c45e22d27afcac90e1f40fbbbcbaa37e905f&=',
+  'https://media.discordapp.net/attachments/1475890017443516476/1476608673231929344/hug2.gif?ex=69a1be7d&is=69a06cfd&hm=1358cb54940965a5a2530936f5c1ab8c9bb34e3f1aaf3ff8b63ee6df33d575d0&=',
+  'https://media.discordapp.net/attachments/1475890017443516476/1476608673567608955/hug3.gif?ex=69a1be7d&is=69a06cfd&hm=4a3f565465958326a1e5e98850e4f190fffea8d670d2c748fdb00669a45d7b0e&='
 ].freeze
 
 SLAP_GIFS = [
-  'https://media.giphy.com/media/Gf3AUz3eBNbTW/giphy.gif',
-  'https://media.giphy.com/media/jLeyZWgtwgr2U/giphy.gif',
-  'https://media.giphy.com/media/Zau0yrl17uzdK/giphy.gif'
+  'https://media.discordapp.net/attachments/1475890017443516476/1476608673987166349/slap1.gif?ex=69a1be7d&is=69a06cfd&hm=23eda85b0bd488637abd580d5c80559c4d02afbb6f0397a2a2cc3ecf5117d0fb&=',
+  'https://media.discordapp.net/attachments/1475890017443516476/1476608674414858471/slap2.gif?ex=69a1be7e&is=69a06cfe&hm=4fbd02b4b48158c2accdf00c8f7bd70c1d40215858a11c29a1cb7df0c7a9d7ca&=',
+  'https://media.discordapp.net/attachments/1475890017443516476/1476608674846998630/slap3.gif?ex=69a1be7e&is=69a06cfe&hm=30cdd268092794f83b17d1deacb8ebbbee8d945b04d078d57d59d39e27493de1&='
 ].freeze

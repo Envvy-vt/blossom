@@ -344,9 +344,9 @@ bot.command(:cooldowns, description: 'Check your active timers for economy comma
     last_used = DB.get_cooldown(uid, type)
     if last_used && (Time.now - last_used) < cooldown_duration
       ready_time = last_used + cooldown_duration
-      "Ready <t:#{ready_time.to_i}:R>"
+      "<t:#{ready_time.to_i}:R>"
     else
-      "**Ready!**"
+      "Ready!"
     end
   end
 

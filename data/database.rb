@@ -13,6 +13,13 @@ class BotDatabase
         levelup_enabled INTEGER DEFAULT 1
       );
     SQL
+
+    # Create a table for the Blacklist
+    @db.execute <<-SQL
+      CREATE TABLE IF NOT EXISTS blacklist (
+        user_id INTEGER PRIMARY KEY
+      );
+    SQL
   end
 
   # =========================
@@ -29,6 +36,11 @@ class BotDatabase
 
   def set_coins(uid, amount)
     @db.execute("INSERT INTO global_users (user_id, coins) VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET coins = ?", [uid, amount, amount])
+  end
+
+  def get_total_users
+    row = @db.get_first_row("SELECT COUNT(user_id) AS total FROM global_users")
+    row ? row['total'] : 0
   end
 
   # =========================
@@ -145,7 +157,26 @@ class BotDatabase
     val = enabled ? 1 : 0
     @db.execute("INSERT INTO server_settings (server_id, levelup_enabled) VALUES (?, ?) ON CONFLICT(server_id) DO UPDATE SET levelup_enabled = ?", [sid, val, val])
   end
-end
+
+  # =========================
+  # BLACKLIST
+  # =========================
+  def toggle_blacklist(uid)
+    row = @db.get_first_row("SELECT user_id FROM blacklist WHERE user_id = ?", [uid])
+    if row
+      @db.execute("DELETE FROM blacklist WHERE user_id = ?", [uid])
+      return false
+    else
+      @db.execute("INSERT INTO blacklist (user_id) VALUES (?)", [uid])
+      return true
+    end
+  end
+
+  def get_blacklist
+    @db.execute("SELECT user_id FROM blacklist").map { |row| row['user_id'] }
+  end
+
+end # <--- MAKE SURE THIS FINAL 'END' IS HERE!
 
 # Instantiate the global DB object!
 DB = BotDatabase.new

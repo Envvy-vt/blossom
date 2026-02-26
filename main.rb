@@ -11,7 +11,6 @@ require_relative 'data/database' # Load our new SQLite wrapper!
 # =========================
 # 2. DATA STRUCTURES (Memory Only)
 # =========================
-# We only keep temporary/live session data in memory now!
 server_bomb_configs = {}
 ACTIVE_BOMBS       = {} 
 ACTIVE_COLLABS     = {}
@@ -23,7 +22,7 @@ COMMAND_CATEGORIES = {
   'Arcade'    => [:coinflip, :slots, :roulette, :scratch, :dice, :cups],
   'Fun'       => [:kettle, :leaderboard, :hug, :slap, :interactions, :bomb],
   'Utility'   => [:ping, :help, :about, :level],
-  'Developer' => [:addcoins, :setcoins, :setlevel, :addxp, :enablebombs, :disablebombs, :levelup]
+  'Developer' => [:addcoins, :setcoins, :setlevel, :addxp, :enablebombs, :disablebombs, :levelup, :blacklist]
 }.freeze
 
 def get_cmd_category(cmd_name)
@@ -91,7 +90,7 @@ def interaction_embed(event, action_name, gifs)
   actor_id  = event.user.id
   target_id = target.id
 
-  # Update the database instantly!
+  # Update the database
   DB.add_interaction(actor_id, action_name, 'sent')
   DB.add_interaction(target_id, action_name, 'received')
 
@@ -331,8 +330,31 @@ eval(File.read(File.join(__dir__, 'commands/developer.rb')), binding)
 # =========================
 
 bot.ready do
-  bot.playing = "#{PREFIX}help for commands!"
-  puts "Bot is connected and status is set to: Playing #{PREFIX}help for commands!"
+  puts "Blossom is connected and live!"
+
+  # Spin up a background thread to rotate her status every 30 seconds
+  Thread.new do
+    loop do
+      # Status 1: "Playing !help in the Arcade 🕹️"
+      bot.playing = "#{PREFIX}help in the Arcade 🕹️"
+      sleep 30
+
+      # Status 2: "Playing in 3 servers 🔴"
+      server_count = bot.servers.size
+      bot.playing = "in #{server_count} servers 🔴"
+      sleep 30
+
+      # Status 3: "Playing with 150 chatters 🎰"
+      user_count = DB.get_total_users
+      bot.playing = "with #{user_count} chatters 🎰"
+      sleep 30
+    end
+  end
+end
+
+# Pulls every banned ID from the database and tells the bot to ignore them
+DB.get_blacklist.each do |uid|
+  bot.ignore_user(uid)
 end
 
 puts "Starting bot with prefix #{PREFIX.inspect}..."

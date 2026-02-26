@@ -3,7 +3,7 @@
 # =========================
 
 TOKEN  = ENV['DISCORD_TOKEN'] 
-PREFIX = '!'
+PREFIX = 'b!'
 DEV_ID = 1398450651297747065
 
 XP_PER_MESSAGE   = 5

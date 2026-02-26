@@ -179,3 +179,35 @@ bot.command(:disablebombs, description: 'Disable random bomb drops (Admin Only)'
   event.respond("#{EMOJIS['x_']} Random bomb drops have been successfully disabled.")
   nil
 end
+
+bot.command(:blacklist, description: 'Toggle blacklist for a user (Dev Only)', min_args: 1, category: 'Developer') do |event, mention|
+  unless event.user.id == DEV_ID
+    event.respond("#{EMOJIS['x_']} Only the bot developer can use this command!")
+    next
+  end
+
+  target_user = event.message.mentions.first
+  if target_user.nil?
+    event.respond("Usage: `#{PREFIX}blacklist @user`")
+    next
+  end
+
+  uid = target_user.id
+  
+  if uid == DEV_ID
+    event.respond("#{EMOJIS['x_']} You cannot blacklist yourself!")
+    next
+  end
+
+  # Toggle them in the DB and check their new status
+  is_now_blacklisted = DB.toggle_blacklist(uid)
+
+  if is_now_blacklisted
+    event.bot.ignore_user(uid) # Tells discordrb to go completely deaf to this user
+    send_embed(event, title: "🚫 User Blacklisted", description: "#{target_user.mention} has been added to the blacklist. I will now ignore all messages and commands from them.")
+  else
+    event.bot.unignore_user(uid) # Tells discordrb to listen to them again
+    send_embed(event, title: "✅ User Forgiven", description: "#{target_user.mention} has been removed from the blacklist. They are free to interact again.")
+  end
+  nil
+end

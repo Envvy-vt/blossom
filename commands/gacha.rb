@@ -4,9 +4,12 @@
 
 bot.command(:summon, description: 'Roll the gacha!', category: 'Gacha') do |event|
   uid = event.user.id
+  now = Time.now
+  last_used = DB.get_cooldown(uid, 'summon')
 
-  if summon_cooldowns[uid] && Time.now < summon_cooldowns[uid]
-    ready_time = summon_cooldowns[uid].to_i
+  # 600 seconds = 10 minutes
+  if last_used && (now - last_used) < 600
+    ready_time = (last_used + 600).to_i
     embed = Discordrb::Webhooks::Embed.new(
       title: "#{EMOJIS['drink']} Portal Recharging",
       description: "Your gacha energy is depleted!\nThe portal will be ready <t:#{ready_time}:R>.",
@@ -76,7 +79,8 @@ bot.command(:summon, description: 'Roll the gacha!', category: 'Gacha') do |even
     image: gif_url
   )
 
-  summon_cooldowns[uid] = Time.now + 600
+  # Save the exact time they summoned to the database!
+  DB.set_cooldown(uid, 'summon', now)
   nil
 end
 

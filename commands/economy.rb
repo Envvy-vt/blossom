@@ -350,19 +350,13 @@ bot.command(:cooldowns, description: 'Check your active timers for economy comma
     end
   end
 
-  summon_ready = if summon_cooldowns[uid] && Time.now < summon_cooldowns[uid]
-                   "Ready <t:#{summon_cooldowns[uid].to_i}:R>"
-                 else
-                   "**Ready!**"
-                 end
-
   cd_fields = [
-    { name: '!daily', value: check_cd.call('daily', DAILY_COOLDOWN), inline: true },
-    { name: '!work', value: check_cd.call('work', WORK_COOLDOWN), inline: true },
-    { name: '!stream', value: check_cd.call('stream', STREAM_COOLDOWN), inline: true },
-    { name: '!post', value: check_cd.call('post', POST_COOLDOWN), inline: true },
-    { name: '!collab', value: check_cd.call('collab', COLLAB_COOLDOWN), inline: true },
-    { name: '!summon', value: summon_ready, inline: true }
+    { name: 'b!daily', value: check_cd.call('daily', DAILY_COOLDOWN), inline: true },
+    { name: 'b!work', value: check_cd.call('work', WORK_COOLDOWN), inline: true },
+    { name: 'b!stream', value: check_cd.call('stream', STREAM_COOLDOWN), inline: true },
+    { name: 'b!post', value: check_cd.call('post', POST_COOLDOWN), inline: true },
+    { name: 'b!collab', value: check_cd.call('collab', COLLAB_COOLDOWN), inline: true },
+    { name: 'b!summon', value: check_cd.call('summon', 600), inline: true } # 600s = 10m
   ]
 
   send_embed(

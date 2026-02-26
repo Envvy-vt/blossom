@@ -1,0 +1,470 @@
+# =========================
+# LEVELING SYSTEM
+# =========================
+
+bot.message do |event|
+  next if event.user.bot_account?
+  next unless event.server 
+
+  sid  = event.server.id
+  uid  = event.user.id
+  user = users[sid][uid]
+
+  now = Time.now
+  if user['last_xp_at'] && (now - user['last_xp_at']) < MESSAGE_COOLDOWN
+    next
+  end
+
+  user['xp'] += XP_PER_MESSAGE
+  user['last_xp_at'] = now
+  coins[uid] += COINS_PER_MESSAGE
+
+  needed = user['level'] * 100
+  if user['xp'] >= needed
+    user['xp']   -= needed
+    user['level'] += 1
+
+    if levelup_enabled_for?(sid, levelup_settings)
+      send_embed(
+        event,
+        title: "#{EMOJIS['LevelUp']}",
+        description: "#{event.user.mention} reached level **#{user['level']}**!",
+        fields: [
+          { name: 'XP Remaining', value: "#{user['xp']}/#{user['level'] * 100}", inline: true },
+          { name: 'Coins', value: "#{coins[uid]} #{EMOJIS['s_coin']}", inline: true }
+        ]
+      )
+    end
+  end
+end
+
+bot.command(:level, description: 'Show a user\'s level and XP for this server', category: 'Utility') do |event|
+  unless event.server
+    event.respond("#{EMOJIS['x_']} This command can only be used in a server!")
+    next
+  end
+
+  target_user = event.message.mentions.first || event.user
+  sid  = event.server.id
+  uid  = target_user.id
+  user = users[sid][uid]
+  needed = user['level'] * 100
+
+  dev_badge = (uid == DEV_ID) ? "#{EMOJIS['developer']} **Verified Bot Developer**" : ""
+
+  send_embed(
+    event,
+    title: "#{EMOJIS['crown']} #{target_user.display_name}'s Server Level",
+    description: dev_badge, 
+    fields: [
+      { name: 'Level', value: user['level'].to_s, inline: true },
+      { name: 'XP', value: "#{user['xp']}/#{needed}", inline: true },
+      { name: 'Coins', value: "#{coins[uid]} #{EMOJIS['s_coin']}", inline: true }
+    ]
+  )
+  nil
+end
+
+bot.command(:leaderboard, description: 'Show top users by level and XP for this server', category: 'Fun') do |event|
+  unless event.server
+    event.respond("#{EMOJIS['x_']} This command can only be used in a server!")
+    next
+  end
+
+  sid = event.server.id
+  sorted = users[sid].sort_by { |_id, data| [-(data['level']), -(data['xp'])] }.first(10)
+
+  if sorted.empty?
+    send_embed(event, title: "#{EMOJIS['crown']} Server Leaderboard", description: 'Nobody has gained any XP here yet.')
+  else
+    desc = sorted.each_with_index.map do |(id, data), index|
+      user_obj = event.bot.user(id)
+      name = user_obj ? user_obj.display_name : "User #{id}"
+      "##{index + 1} — **#{name}**: Level #{data['level']} | **#{coins[id]}** #{EMOJIS['s_coin']}"
+    end.join("\n")
+
+    send_embed(event, title: "#{EMOJIS['crown']} Server Leaderboard", description: desc)
+  end
+  nil
+end
+
+# =========================
+# ECONOMY COMMANDS
+# =========================
+
+bot.command(:balance, description: 'Show a user\'s coin balance, gacha stats, and inventory', category: 'Economy') do |event|
+  target_user = event.message.mentions.first || event.user
+  uid = target_user.id
+  user_collection = collections[uid] || {}
+  
+  common_count    = user_collection.values.count { |c| c['rarity'] == 'common' && c['count'] > 0 }
+  rare_count      = user_collection.values.count { |c| c['rarity'] == 'rare' && c['count'] > 0 }
+  legendary_count = user_collection.values.count { |c| c['rarity'] == 'legendary' && c['count'] > 0 }
+  goddess_count   = user_collection.values.count { |c| c['rarity'] == 'goddess' && c['count'] > 0 }
+
+  user_inv = inventory[uid] || {}
+  
+  setup_text = ""
+  ['headset', 'keyboard', 'mic', 'neon sign'].each do |item_key|
+    if user_inv[item_key] && user_inv[item_key] > 0
+      setup_text += "#{BLACK_MARKET_ITEMS[item_key][:name]}\n"
+    end
+  end
+  setup_text = "None" if setup_text.empty?
+
+  consumables_text = ""
+  ['rng manipulator'].each do |item_key|
+    if user_inv[item_key] && user_inv[item_key] > 0
+      consumables_text += "#{BLACK_MARKET_ITEMS[item_key][:name]} (x#{user_inv[item_key]})\n"
+    end
+  end
+  consumables_text = "None" if consumables_text.empty?
+
+  fields = [
+    { name: "#{EMOJIS['rich']} Bank Account", value: "**#{coins[uid]}** #{EMOJIS['s_coin']}", inline: false },
+    { name: '🖥️ Stream Setup', value: setup_text, inline: true },
+    { name: '🎒 Consumables', value: consumables_text, inline: true },
+    { name: "\u200B", value: "\u200B", inline: false },
+    { name: '⭐ Commons', value: "#{common_count} / #{TOTAL_UNIQUE_CHARS['common']}", inline: true },
+    { name: '✨ Rares', value: "#{rare_count} / #{TOTAL_UNIQUE_CHARS['rare']}", inline: true },
+    { name: '🌟 Legendaries', value: "#{legendary_count} / #{TOTAL_UNIQUE_CHARS['legendary']}", inline: true }
+  ]
+
+  if goddess_count > 0
+    fields << { name: '💎 Goddess', value: "#{goddess_count} / #{TOTAL_UNIQUE_CHARS['goddess']}", inline: true }
+  end
+
+  dev_badge = (uid == DEV_ID) ? "\n\n#{EMOJIS['developer']} **Verified Bot Developer**" : ""
+
+  send_embed(
+    event,
+    title: "#{target_user.display_name}'s Profile",
+    description: "Here are #{target_user.display_name}'s current economy and gacha stats!#{dev_badge}",
+    fields: fields
+  )
+  nil
+end
+
+bot.command(:daily, description: 'Claim your daily coin reward', category: 'Economy') do |event|
+  uid = event.user.id
+  now = Time.now
+  cd  = economy_cooldowns[uid]
+
+  if cd['daily_at'] && (now - cd['daily_at']) < DAILY_COOLDOWN
+    remaining = DAILY_COOLDOWN - (now - cd['daily_at'])
+    send_embed(event, title: "#{EMOJIS['coin']} Daily Reward", description: "You already claimed your daily #{EMOJIS['worktired']}\nTry again in **#{format_time_delta(remaining)}**.")
+  else
+    reward = DAILY_REWARD
+    bonus_text = ""
+    
+    if inventory[uid] && inventory[uid]['neon sign'] && inventory[uid]['neon sign'] > 0
+      reward *= 2
+      bonus_text = "\n*(✨ Neon Sign Boost: x2 Payout!)*"
+    end
+
+    coins[uid] += reward
+    cd['daily_at'] = now
+    send_embed(event, title: "#{EMOJIS['coin']} Daily Reward", description: "You claimed **#{reward}** #{EMOJIS['s_coin']}!#{bonus_text}\nNew balance: **#{coins[uid]}**.")
+  end
+  nil
+end
+
+bot.command(:work, description: 'Work for some coins (5min cooldown)', category: 'Economy') do |event|
+  uid = event.user.id
+  now = Time.now
+  cd  = economy_cooldowns[uid]
+
+  if cd['work_at'] && (now - cd['work_at']) < WORK_COOLDOWN
+    remaining = WORK_COOLDOWN - (now - cd['work_at'])
+    send_embed(event, title: "#{EMOJIS['work']} Work", description: "You are tired #{EMOJIS['worktired']}\nTry working again in **#{format_time_delta(remaining)}**.")
+  else
+    amount = rand(WORK_REWARD_RANGE)
+    bonus_text = ""
+
+    if inventory[uid] && inventory[uid]['keyboard'] && inventory[uid]['keyboard'] > 0
+      amount = (amount * 1.25).to_i
+      bonus_text = "\n*(⌨️ Keyboard Boost: +25%)*"
+    end
+
+    coins[uid] += amount
+    cd['work_at'] = now
+    send_embed(event, title: "#{EMOJIS['work']} Work", description: "You worked hard and earned **#{amount}** #{EMOJIS['s_coin']}!#{bonus_text}\nNew balance: **#{coins[uid]}**.")
+  end
+  nil
+end
+
+bot.command(:stream, description: 'Go live and earn some coins! (30m cooldown)', category: 'Economy') do |event|
+  uid = event.user.id
+  now = Time.now
+  cd  = economy_cooldowns[uid]
+
+  if cd['stream_at'] && (now - cd['stream_at']) < STREAM_COOLDOWN
+    remaining = STREAM_COOLDOWN - (now - cd['stream_at'])
+    send_embed(event, title: "#{EMOJIS['stream']} Stream Offline", description: "You just finished streaming! Your voice needs a break #{EMOJIS['drink']}\nTry going live again in **#{format_time_delta(remaining)}**.")
+  else
+    reward = rand(STREAM_REWARD_RANGE)
+    game = STREAM_GAMES.sample
+    bonus_text = ""
+    
+    if inventory[uid] && inventory[uid]['mic'] && inventory[uid]['mic'] > 0
+      reward = (reward * 1.10).to_i
+      bonus_text = "\n*(🎙️ Studio Mic Boost: +10%)*"
+    end
+
+    coins[uid] += reward
+    cd['stream_at'] = now
+    send_embed(event, title: "#{EMOJIS['stream']} Stream Ended", description: "You had a great stream playing **#{game}** and earned **#{reward}** #{EMOJIS['s_coin']}!#{bonus_text}\nNew balance: **#{coins[uid]}**.")
+  end
+  nil
+end
+
+bot.command(:post, description: 'Post on social media for some quick coins! (5m cooldown)', category: 'Economy') do |event|
+  uid = event.user.id
+  now = Time.now
+  cd  = economy_cooldowns[uid]
+
+  if cd['post_at'] && (now - cd['post_at']) < POST_COOLDOWN
+    remaining = POST_COOLDOWN - (now - cd['post_at'])
+    send_embed(event, title: "#{EMOJIS['error']} Social Media Break", description: "You're posting too fast! Don't get shadowbanned #{EMOJIS['nervous']}\nTry posting again in **#{format_time_delta(remaining)}**.")
+  else
+    reward = rand(POST_REWARD_RANGE)
+    platform = POST_PLATFORMS.sample
+    bonus_text = ""
+
+    if inventory[uid] && inventory[uid]['headset'] && inventory[uid]['headset'] > 0
+      reward = (reward * 1.25).to_i
+      bonus_text = "\n*(🎧 Headset Boost: +25%)*"
+    end
+
+    coins[uid] += reward
+    cd['post_at'] = now
+    send_embed(event, title: "#{EMOJIS['like']} New Post Uploaded!", description: "Your latest post on **#{platform}** got a lot of engagement! You earned **#{reward}** #{EMOJIS['s_coin']}.#{bonus_text}\nNew balance: **#{coins[uid]}**.")
+  end
+  nil
+end
+
+bot.command(:collab, description: 'Ask the server to do a collab stream! (30m cooldown)', category: 'Economy') do |event|
+  uid = event.user.id
+  now = Time.now
+  cd  = economy_cooldowns[uid]
+
+  if cd['collab_at'] && (now - cd['collab_at']) < COLLAB_COOLDOWN
+    remaining = COLLAB_COOLDOWN - (now - cd['collab_at'])
+    send_embed(event, title: "#{EMOJIS['worktired']} Collab Burnout", description: "You're collaborating too much! Rest your voice.\nTry again in **#{format_time_delta(remaining)}**.")
+    next
+  end
+
+  cd['collab_at'] = now
+  expire_time = Time.now + 180 
+  discord_timestamp = "<t:#{expire_time.to_i}:R>"
+  
+  collab_id = "collab_#{expire_time.to_i}_#{rand(10000)}"
+  ACTIVE_COLLABS[collab_id] = uid 
+
+  embed = Discordrb::Webhooks::Embed.new(
+    title: "#{EMOJIS['stream']} Collab Request!",
+    description: "#{event.user.mention} is looking for someone to do a collab stream with!\n\nPress the button below to join them! Request expires **#{discord_timestamp}**.",
+    color: NEON_COLORS.sample
+  )
+
+  view = Discordrb::Components::View.new do |v|
+    v.row { |r| r.button(custom_id: collab_id, label: 'Accept Collab', style: :success, emoji: '🤝') }
+  end
+
+  msg = event.channel.send_message(nil, false, embed, nil, nil, event.message, view)
+
+  Thread.new do
+    sleep 180
+    if ACTIVE_COLLABS.key?(collab_id)
+      ACTIVE_COLLABS.delete(collab_id)
+      failed_embed = Discordrb::Webhooks::Embed.new(
+        title: "#{EMOJIS['x_']} Collab Cancelled",
+        description: "Nobody was available to collab with #{event.user.mention} this time #{EMOJIS['confused']}...",
+        color: 0x808080
+      )
+      msg.edit(nil, failed_embed, Discordrb::Components::View.new)
+    end
+  end
+  nil
+end
+
+bot.button(custom_id: /^collab_/) do |event|
+  collab_id = event.custom_id
+
+  if ACTIVE_COLLABS.key?(collab_id)
+    author_id = ACTIVE_COLLABS[collab_id]
+
+    if event.user.id == author_id
+      event.respond(content: "You can't accept your own collab request!", ephemeral: true)
+      next
+    end
+
+    ACTIVE_COLLABS.delete(collab_id)
+    coins[author_id] += COLLAB_REWARD
+    coins[event.user.id] += COLLAB_REWARD
+
+    author_user = event.bot.user(author_id)
+    author_mention = author_user ? author_user.mention : "<@#{author_id}>"
+
+    success_embed = Discordrb::Webhooks::Embed.new(
+      title: "#{EMOJIS['neonsparkle']} Collab Stream Started!",
+      description: "#{event.user.mention} accepted the collab with #{author_mention}!\n\nBoth streamers earned **#{COLLAB_REWARD}** #{EMOJIS['s_coin']} for an awesome stream.",
+      color: 0x00FF00
+    )
+
+    event.update_message(content: nil, embeds: [success_embed], components: Discordrb::Components::View.new)
+  else
+    event.respond(content: 'This collab request has already expired or been accepted!', ephemeral: true)
+  end
+end
+
+bot.command(:cooldowns, description: 'Check your active timers for economy commands', category: 'Economy') do |event|
+  uid = event.user.id
+  cd  = economy_cooldowns[uid] || {}
+
+  check_cd = ->(last_used, cooldown_duration) do
+    if last_used && (Time.now - last_used) < cooldown_duration
+      ready_time = last_used + cooldown_duration
+      "Ready <t:#{ready_time.to_i}:R>"
+    else
+      "**Ready!**"
+    end
+  end
+
+  summon_ready = if summon_cooldowns[uid] && Time.now < summon_cooldowns[uid]
+                   "Ready <t:#{summon_cooldowns[uid].to_i}:R>"
+                 else
+                   "**Ready!**"
+                 end
+
+  cd_fields = [
+    { name: '!daily', value: check_cd.call(cd['daily_at'], DAILY_COOLDOWN), inline: true },
+    { name: '!work', value: check_cd.call(cd['work_at'], WORK_COOLDOWN), inline: true },
+    { name: '!stream', value: check_cd.call(cd['stream_at'], STREAM_COOLDOWN), inline: true },
+    { name: '!post', value: check_cd.call(cd['post_at'], POST_COOLDOWN), inline: true },
+    { name: '!collab', value: check_cd.call(cd['collab_at'], COLLAB_COOLDOWN), inline: true },
+    { name: '!summon', value: summon_ready, inline: true }
+  ]
+
+  send_embed(
+    event,
+    title: "#{EMOJIS['info']} #{event.user.display_name}'s Cooldowns",
+    description: "Here are your current economy timers:",
+    fields: cd_fields
+  )
+  nil
+end
+
+# =========================
+# CHAT BOMB DROPS
+# =========================
+
+bot.command(:bomb, description: 'Plant a bomb that explodes in 5 minutes (Admin only)', category: 'Fun') do |event|
+  unless event.user.permission?(:administrator, event.channel) || event.user.id == DEV_ID
+    send_embed(event, title: "#{EMOJIS['x_']} Permission Denied", description: 'You need Administrator permissions to plant a bomb!')
+    next
+  end
+
+  expire_time = Time.now + 300
+  discord_timestamp = "<t:#{expire_time.to_i}:R>"
+  
+  bomb_id = "bomb_#{expire_time.to_i}_#{rand(10000)}"
+  ACTIVE_BOMBS[bomb_id] = true
+
+  embed = Discordrb::Webhooks::Embed.new(
+    title: "#{EMOJIS['bomb']} Bomb Planted!",
+    description: "An admin has planted a bomb! It will explode **#{discord_timestamp}**!\nQuick, press the button to defuse it and earn a reward!",
+    color: NEON_COLORS.sample
+  )
+
+  view = Discordrb::Components::View.new do |v|
+    v.row { |r| r.button(custom_id: bomb_id, label: 'Defuse', style: :danger, emoji: '✂️') }
+  end
+
+  msg = event.channel.send_message(nil, false, embed, nil, nil, event.message, view)
+
+  Thread.new do
+    sleep 300
+    if ACTIVE_BOMBS[bomb_id]
+      ACTIVE_BOMBS.delete(bomb_id)
+      exploded_embed = Discordrb::Webhooks::Embed.new(
+        title: "#{EMOJIS['bomb']} BOOM!",
+        description: 'Nobody defused it in time... The bomb exploded!',
+        color: 0x000000 
+      )
+      msg.edit(nil, exploded_embed, Discordrb::Components::View.new)
+    end
+  end
+  nil
+end
+
+bot.message do |event|
+  next unless event.server
+  next if event.author.bot_account?
+
+  sid = event.server.id
+  config = server_bomb_configs[sid]
+  next unless config && config['enabled']
+
+  uid = event.author.id
+
+  if config['last_user_id'] != uid
+    config['message_count'] += 1
+    config['last_user_id'] = uid
+
+    if config['message_count'] >= config['threshold']
+      target_channel = bot.channel(config['channel_id'], event.server)
+      
+      if target_channel
+        embed = Discordrb::Webhooks::Embed.new(
+          title: "#{EMOJIS['bomb']} INCOMING BOMB!",
+          description: "A rogue bomb just dropped into the chat!\nQuick, click the button below to defuse it and steal the coins inside!",
+          color: 0xFF0000
+        )
+        
+        view = Discordrb::Components::View.new do |v|
+          v.row { |r| r.button(custom_id: "defuse_drop_#{sid}", label: 'Cut the Wire!', style: :danger, emoji: '✂️') }
+        end
+        
+        target_channel.send_message(nil, false, embed, nil, nil, nil, view)
+      end
+
+      config['message_count'] = 0
+      config['last_user_id'] = nil
+      config['threshold'] = rand(BOMB_MIN_MESSAGES..BOMB_MAX_MESSAGES)
+    end
+  end
+end
+
+bot.button(custom_id: /^bomb_/) do |event|
+  bomb_id = event.custom_id
+
+  if ACTIVE_BOMBS[bomb_id]
+    ACTIVE_BOMBS.delete(bomb_id)
+    reward = rand(50..150)
+    coins[event.user.id] += reward
+
+    defused_embed = Discordrb::Webhooks::Embed.new(
+      title: "#{EMOJIS['surprise']} Bomb Defused!",
+      description: "The bomb was successfully defused by #{event.user.mention}!\nThey earned **#{reward}** #{EMOJIS['s_coin']} for their bravery.",
+      color: 0x00FF00 
+    )
+    event.update_message(content: nil, embeds: [defused_embed], components: Discordrb::Components::View.new)
+  else
+    event.respond(content: 'This bomb has already exploded or been defused!', ephemeral: true)
+  end
+end
+
+bot.button(custom_id: /^defuse_drop_(\d+)$/) do |event|
+  uid = event.user.id
+  reward = rand(100..500)
+  coins[uid] ||= 0
+  coins[uid] += reward
+
+  embed = Discordrb::Webhooks::Embed.new(
+    title: "#{EMOJIS['coins']} Bomb Defused!",
+    description: "#{event.user.mention} successfully cut the wire!\nThey looted **#{reward}** #{EMOJIS['s_coin']} from the casing.",
+    color: 0x00FF00
+  )
+  event.update_message(content: nil, embeds: [embed], components: [])
+end

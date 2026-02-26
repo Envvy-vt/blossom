@@ -1,17 +1,21 @@
 require 'discordrb'
-require 'json'
-require 'time'
 require 'dotenv/load'
 
 # =========================
-# 1. LOAD CONFIG DATA
+# 1. LOAD CONFIG DATA & DATABASE
 # =========================
 require_relative 'data/config'
 require_relative 'data/pools'
+require_relative 'data/database' # Load our new SQLite wrapper!
 
 # =========================
-# 2. DATA STRUCTURES
+# 2. DATA STRUCTURES (Memory Only)
 # =========================
+# We only keep temporary/live session data in memory now!
+server_bomb_configs = {}
+ACTIVE_BOMBS       = {} 
+ACTIVE_COLLABS     = {}
+ACTIVE_TRADES      = {}
 
 COMMAND_CATEGORIES = {
   'Economy'   => [:balance, :daily, :work, :stream, :post, :collab, :cooldowns],
@@ -29,137 +33,8 @@ def get_cmd_category(cmd_name)
   'Uncategorized'
 end
 
-users = Hash.new do |hash, server_id|
-  hash[server_id] = Hash.new { |h, user_id| h[user_id] = { 'xp' => 0, 'level' => 1, 'last_xp_at' => nil } }
-end
-
-coins              = Hash.new(0)
-collections        = Hash.new { |h, k| h[k] = {} }
-inventory          = Hash.new { |h, k| h[k] = {} } 
-interactions       = Hash.new do |h, k|
-  h[k] = { 'hug' => { 'sent' => 0, 'received' => 0 }, 'slap' => { 'sent' => 0, 'received' => 0 } }
-end
-economy_cooldowns  = Hash.new { |h, k| h[k] = { 'daily_at' => nil, 'work_at' => nil } }
-summon_cooldowns   = {}
-levelup_settings   = {} 
-server_bomb_configs = {}
-ACTIVE_BOMBS       = {} 
-ACTIVE_COLLABS     = {}
-ACTIVE_TRADES      = {}
-
 # =========================
-# 3. PERSISTENCE HELPERS
-# =========================
-
-def load_data(file, users, coins, collections, interactions, economy_cooldowns, levelup_settings, server_bomb_configs, inventory)
-  return unless File.exist?(file)
-
-  raw = JSON.parse(File.read(file))
-
-  (raw['users'] || {}).each do |server_id_str, server_data|
-    next if server_data.key?('xp') 
-    
-    sid = server_id_str.to_i
-    server_data.each do |id_str, data|
-      uid = id_str.to_i
-      users[sid][uid] = {
-        'xp'         => data['xp'] || 0,
-        'level'      => data['level'] || 1,
-        'last_xp_at' => data['last_xp_at'] ? Time.parse(data['last_xp_at']) : nil
-      }
-    end
-  end
-
-  (raw['coins'] || {}).each do |id_str, amount|
-    coins[id_str.to_i] = amount.to_i
-  end
-
-  (raw['collections'] || {}).each do |id_str, data|
-    uid = id_str.to_i
-    if data.is_a?(Array)
-      data.each do |c|
-        name = c['name']
-        rarity = c['rarity']
-        collections[uid][name] ||= { 'rarity' => rarity, 'count' => 0 }
-        collections[uid][name]['count'] += 1
-      end
-    else
-      collections[uid] = data
-    end
-  end
-
-  (raw['inventory'] || {}).each do |id_str, data|
-    inventory[id_str.to_i] = data
-  end
-
-  (raw['interactions'] || {}).each do |id_str, data|
-    id = id_str.to_i
-    if data.key?('sent') && data.key?('received')
-      interactions[id] = {
-        'hug'  => { 'sent' => data['sent'] || 0, 'received' => data['received'] || 0 },
-        'slap' => { 'sent' => 0, 'received' => 0 }
-      }
-    else
-      interactions[id] = {
-        'hug' => { 'sent' => data.dig('hug', 'sent') || 0, 'received' => data.dig('hug', 'received') || 0 },
-        'slap' => { 'sent' => data.dig('slap', 'sent') || 0, 'received' => data.dig('slap', 'received') || 0 }
-      }
-    end
-  end
-
-  (raw['economy_cooldowns'] || {}).each do |id_str, data|
-    economy_cooldowns[id_str.to_i] = {
-      'daily_at'  => data['daily_at'] ? Time.parse(data['daily_at']) : nil,
-      'work_at'   => data['work_at'] ? Time.parse(data['work_at']) : nil,
-      'stream_at' => data['stream_at'] ? Time.parse(data['stream_at']) : nil,
-      'post_at'   => data['post_at'] ? Time.parse(data['post_at']) : nil,
-      'collab_at' => data['collab_at'] ? Time.parse(data['collab_at']) : nil
-    }
-  end
-
-  (raw['levelup_settings'] || {}).each do |server_id_str, enabled|
-    levelup_settings[server_id_str.to_i] = !!enabled
-  end
-
-  (raw['server_bomb_configs'] || {}).each do |sid_str, config|
-    server_bomb_configs[sid_str.to_i] = config
-  end
-
-rescue StandardError => e
-  puts "Failed to load data: #{e.message}"
-end
-
-def save_data(file, users, coins, collections, interactions, economy_cooldowns, levelup_settings, server_bomb_configs, inventory)
-  payload = {
-    users: users.transform_values do |server_data|
-      server_data.transform_values do |u|
-        { xp: u['xp'], level: u['level'], last_xp_at: u['last_xp_at']&.iso8601 }
-      end
-    end,
-    coins: coins,
-    collections: collections,
-    inventory: inventory,
-    interactions: interactions,
-    economy_cooldowns: economy_cooldowns.transform_values do |c|
-      {
-        daily_at:  c['daily_at']&.iso8601,
-        work_at:   c['work_at']&.iso8601,
-        stream_at: c['stream_at']&.iso8601,
-        post_at:   c['post_at']&.iso8601,
-        collab_at: c['collab_at']&.iso8601
-      }
-    end,
-    levelup_settings: levelup_settings,
-    server_bomb_configs: server_bomb_configs
-  }
-
-  File.write(file, JSON.pretty_generate(payload))
-rescue StandardError => e
-  puts "Failed to save data: #{e.message}"
-end
-
-# =========================
-# 4. BOT HELPERS
+# 3. BOT HELPERS
 # =========================
 
 def roll_rarity
@@ -188,11 +63,6 @@ def format_time_delta(seconds)
   parts.join(' ')
 end
 
-def levelup_enabled_for?(server_id, levelup_settings)
-  return GLOBAL_LEVELUP_ENABLED if server_id.nil?
-  levelup_settings.fetch(server_id, GLOBAL_LEVELUP_ENABLED)
-end
-
 def send_embed(event, title:, description:, fields: nil, image: nil)
   embed = Discordrb::Webhooks::Embed.new
   embed.title = title
@@ -212,7 +82,7 @@ def send_embed(event, title:, description:, fields: nil, image: nil)
   event.channel.send_message(nil, false, embed, nil, nil, event.message)
 end
 
-def interaction_embed(event, action_name, gifs, interactions)
+def interaction_embed(event, action_name, gifs)
   target = event.message.mentions.first
   unless target
     return send_embed(event, title: "#{EMOJIS['error']} Interaction Error", description: "Mention someone to #{action_name}!")
@@ -221,11 +91,13 @@ def interaction_embed(event, action_name, gifs, interactions)
   actor_id  = event.user.id
   target_id = target.id
 
-  interactions[actor_id][action_name]['sent']     += 1
-  interactions[target_id][action_name]['received'] += 1
+  # Update the database instantly!
+  DB.add_interaction(actor_id, action_name, 'sent')
+  DB.add_interaction(target_id, action_name, 'received')
 
-  actor_stats  = interactions[actor_id][action_name]
-  target_stats = interactions[target_id][action_name]
+  # Fetch the updated stats
+  actor_stats  = DB.get_interactions(actor_id)[action_name]
+  target_stats = DB.get_interactions(target_id)[action_name]
 
   send_embed(
     event,
@@ -246,11 +118,10 @@ def get_current_banner
   CHARACTER_POOLS[active_key]
 end
 
-def generate_collection_page(user_obj, collections, rarity_page)
+def generate_collection_page(user_obj, rarity_page)
   uid = user_obj.id
-  chars = collections[uid] || {}
+  chars = DB.get_collection(uid)
   
-  # Checks if they have normal copies OR ascended copies
   page_chars = chars.select { |_, data| data['rarity'] == rarity_page && (data['count'] > 0 || data['ascended'].to_i > 0) }
   
   total_collected = page_chars.size
@@ -268,7 +139,6 @@ def generate_collection_page(user_obj, collections, rarity_page)
   if page_chars.empty?
     desc += "*You haven't pulled any characters of this rarity yet!*"
   else
-    # NEW: Formats the list to show standard copies and shiny ascended copies!
     list = page_chars.map do |name, data|
       str = "`#{name}` (x#{data['count']})"
       str += " ✨*(Ascended x#{data['ascended']})*" if data['ascended'].to_i > 0
@@ -284,8 +154,8 @@ def generate_collection_page(user_obj, collections, rarity_page)
   embed
 end
 
-def collection_view(target_uid, current_page, collections)
-  user_chars = collections[target_uid] || {}
+def collection_view(target_uid, current_page)
+  user_chars = DB.get_collection(target_uid)
   owns_goddess = user_chars.values.any? { |data| data['rarity'] == 'goddess' && data['count'] > 0 }
 
   Discordrb::Components::View.new do |v|
@@ -432,12 +302,11 @@ def build_blackmarket_page(user_id)
       r.button(custom_id: "shop_home_#{user_id}", label: 'Back to Shop', style: :secondary, emoji: '🔙')
     end
   end
-
   [embed, view]
 end
 
 # =========================
-# 5. BOT SETUP & TRIGGERS
+# 5. BOT SETUP
 # =========================
 
 bot = Discordrb::Commands::CommandBot.new(
@@ -445,27 +314,6 @@ bot = Discordrb::Commands::CommandBot.new(
   prefix:  PREFIX,
   intents: %i[server_messages server_members]
 )
-
-load_data(DATA_FILE, users, coins, collections, interactions, economy_cooldowns, levelup_settings, server_bomb_configs, inventory)
-
-Thread.new do
-  loop do
-    sleep 60
-    save_data(DATA_FILE, users, coins, collections, interactions, economy_cooldowns, levelup_settings, server_bomb_configs, inventory)
-  end
-end
-
-trap('INT') do
-  puts 'Saving data and shutting down...'
-  save_data(DATA_FILE, users, coins, collections, interactions, economy_cooldowns, levelup_settings, server_bomb_configs, inventory)
-  exit
-end
-
-trap('TERM') do
-  puts 'Saving data and shutting down...'
-  save_data(DATA_FILE, users, coins, collections, interactions, economy_cooldowns, levelup_settings, server_bomb_configs, inventory)
-  exit
-end
 
 # =========================
 # 6. LOAD COMMANDS

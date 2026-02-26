@@ -14,11 +14,8 @@ bot.command(:trade, description: 'Trade a character with someone (Usage: !trade 
     next
   end
 
-  # Split the remaining text by the word "for" (ignoring uppercase/lowercase)
   full_text = args.join(' ')
-  # Remove the @mention from the string so it doesn't mess up the character name
   clean_text = full_text.gsub(/<@!?#{target_user.id}>/, '').strip
-  
   parts = clean_text.split(/ for /i)
   
   if parts.size != 2
@@ -36,25 +33,25 @@ bot.command(:trade, description: 'Trade a character with someone (Usage: !trade 
   uid_a = event.user.id
   uid_b = target_user.id
 
-  # Find exact names in collections
-  my_char_real = (collections[uid_a] || {}).keys.find { |k| k.downcase == my_char_search }
-  their_char_real = (collections[uid_b] || {}).keys.find { |k| k.downcase == their_char_search }
+  coll_a = DB.get_collection(uid_a)
+  coll_b = DB.get_collection(uid_b)
 
-  if my_char_real.nil? || collections[uid_a][my_char_real]['count'] < 1
+  my_char_real = coll_a.keys.find { |k| k.downcase == my_char_search }
+  their_char_real = coll_b.keys.find { |k| k.downcase == their_char_search }
+
+  if my_char_real.nil? || coll_a[my_char_real]['count'] < 1
     send_embed(event, title: "#{EMOJIS['x_']} Missing Character", description: "You don't own **#{parts[0].strip}** to trade!")
     next
   end
 
-  if their_char_real.nil? || collections[uid_b][their_char_real]['count'] < 1
+  if their_char_real.nil? || coll_b[their_char_real]['count'] < 1
     send_embed(event, title: "#{EMOJIS['x_']} Missing Character", description: "#{target_user.mention} doesn't own **#{parts[1].strip}**!")
     next
   end
 
-  # Generate a unique trade ID
-  expire_time = Time.now + 120 # 2 minutes
+  expire_time = Time.now + 120
   trade_id = "trade_#{expire_time.to_i}_#{rand(1000)}"
 
-  # Store the data in escrow
   ACTIVE_TRADES[trade_id] = {
     user_a: uid_a,
     user_b: uid_b,
@@ -78,7 +75,6 @@ bot.command(:trade, description: 'Trade a character with someone (Usage: !trade 
 
   msg = event.channel.send_message(nil, false, embed, nil, nil, event.message, view)
 
-  # Auto-expire thread
   Thread.new do
     sleep 120
     if ACTIVE_TRADES.key?(trade_id)
@@ -91,7 +87,6 @@ bot.command(:trade, description: 'Trade a character with someone (Usage: !trade 
   nil
 end
 
-# Listener for Trade Buttons
 bot.button(custom_id: /^trade_\d+_\d+_(accept|decline)$/) do |event|
   match_data = event.custom_id.match(/^(trade_\d+_\d+)_(accept|decline)$/)
   trade_id = match_data[1]
@@ -104,7 +99,6 @@ bot.button(custom_id: /^trade_\d+_\d+_(accept|decline)$/) do |event|
 
   trade_data = ACTIVE_TRADES[trade_id]
 
-  # Only the target (User B) can press the buttons!
   if event.user.id != trade_data[:user_b]
     event.respond(content: "Only the person receiving the trade offer can click this!", ephemeral: true)
     next
@@ -118,35 +112,28 @@ bot.button(custom_id: /^trade_\d+_\d+_(accept|decline)$/) do |event|
     next
   end
 
-  # ==============================
-  # DOUBLE CHECK INVENTORY IN CASE THEY SOLD IT
-  # ==============================
   uid_a = trade_data[:user_a]
   uid_b = trade_data[:user_b]
   char_a = trade_data[:char_a]
   char_b = trade_data[:char_b]
 
-  if collections[uid_a][char_a]['count'] < 1 || collections[uid_b][char_b]['count'] < 1
+  coll_a = DB.get_collection(uid_a)
+  coll_b = DB.get_collection(uid_b)
+
+  if coll_a[char_a].nil? || coll_a[char_a]['count'] < 1 || coll_b[char_b].nil? || coll_b[char_b]['count'] < 1
     error_embed = Discordrb::Webhooks::Embed.new(title: '❌ Trade Failed', description: "Someone no longer has the character they offered! The trade has been cancelled.", color: 0xFF0000)
     event.update_message(content: nil, embeds: [error_embed], components: Discordrb::Components::View.new)
     next
   end
 
-  # ==============================
-  # SWAP THE CHARACTERS!
-  # ==============================
-  collections[uid_a][char_a]['count'] -= 1
-  collections[uid_b][char_b]['count'] -= 1
+  rarity_a = coll_a[char_a]['rarity']
+  rarity_b = coll_b[char_b]['rarity']
 
-  # Grab rarity from the original to ensure it carries over
-  rarity_a = collections[uid_a][char_a]['rarity']
-  rarity_b = collections[uid_b][char_b]['rarity']
+  DB.remove_character(uid_a, char_a, 1)
+  DB.remove_character(uid_b, char_b, 1)
 
-  collections[uid_a][char_b] ||= { 'rarity' => rarity_b, 'count' => 0 }
-  collections[uid_a][char_b]['count'] += 1
-
-  collections[uid_b][char_a] ||= { 'rarity' => rarity_a, 'count' => 0 }
-  collections[uid_b][char_a]['count'] += 1
+  DB.add_character(uid_a, char_b, rarity_b, 1)
+  DB.add_character(uid_b, char_a, rarity_a, 1)
 
   success_embed = Discordrb::Webhooks::Embed.new(
     title: '🎉 Trade Successful!',

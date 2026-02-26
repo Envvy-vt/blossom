@@ -16,26 +16,45 @@ bot.command(:summon, description: 'Roll the gacha!', category: 'Gacha') do |even
     next
   end
 
-  if coins[uid] < SUMMON_COST
+  if DB.get_coins(uid) < SUMMON_COST
     send_embed(
       event,
       title: "#{EMOJIS['info']} Summon",
-      description: "You need **#{SUMMON_COST}** #{EMOJIS['s_coin']} to summon.\nYou currently have **#{coins[uid]}**."
+      description: "You need **#{SUMMON_COST}** #{EMOJIS['s_coin']} to summon.\nYou currently have **#{DB.get_coins(uid)}**."
     )
     next
   end
 
-  coins[uid] -= SUMMON_COST
-
+  DB.add_coins(uid, -SUMMON_COST)
   active_banner = get_current_banner
-  rarity = roll_rarity
-  pulled_char = active_banner[:characters][rarity].sample
   
+  used_manipulator = false
+  inv = DB.get_inventory(uid)
+  if inv['rng manipulator'] && inv['rng manipulator'] > 0
+    DB.remove_inventory(uid, 'rng manipulator', 1)
+    used_manipulator = true
+    
+    roll = rand(31)
+    if roll < 25
+      rarity = :rare
+    elsif roll < 30
+      rarity = :legendary
+    else
+      rarity = :goddess
+    end
+  else
+    rarity = roll_rarity
+  end
+
+  pulled_char = active_banner[:characters][rarity].sample
   name = pulled_char[:name]
   gif_url = pulled_char[:gif]
   
-  collections[uid][name] ||= { 'rarity' => rarity.to_s, 'count' => 0 }
-  collections[uid][name]['count'] += 1
+  DB.add_character(uid, name, rarity.to_s, 1)
+  
+  # Fetch their updated count
+  user_chars = DB.get_collection(uid)
+  new_count = user_chars[name]['count']
 
   rarity_label = rarity.to_s.capitalize
   emoji = case rarity
@@ -45,12 +64,14 @@ bot.command(:summon, description: 'Roll the gacha!', category: 'Gacha') do |even
           else '⭐'
           end
 
+  buff_text = used_manipulator ? "\n\n*🔮 RNG Manipulator consumed! Common pulls bypassed.*" : ""
+
   send_embed(
     event,
     title: "#{EMOJIS['sparkle']} Summon Result: #{active_banner[:name]}",
-    description: "#{emoji} You summoned **#{name}** (#{rarity_label})!\nYou now own **#{collections[uid][name]['count']}** of them.",
+    description: "#{emoji} You summoned **#{name}** (#{rarity_label})!\nYou now own **#{new_count}** of them.#{buff_text}",
     fields: [
-      { name: 'Remaining Balance', value: "#{coins[uid]} #{EMOJIS['s_coin']}", inline: true }
+      { name: 'Remaining Balance', value: "#{DB.get_coins(uid)} #{EMOJIS['s_coin']}", inline: true }
     ],
     image: gif_url
   )
@@ -61,8 +82,8 @@ end
 
 bot.command(:collection, description: 'View your vtuber collection', category: 'Fun') do |event|
   target_user = event.user
-  embed = generate_collection_page(target_user, collections, 'common')
-  view  = collection_view(target_user.id, 'common', collections) 
+  embed = generate_collection_page(target_user, 'common')
+  view  = collection_view(target_user.id, 'common') 
   
   event.channel.send_message(nil, false, embed, nil, { replied_user: false }, event.message, view)
   nil
@@ -108,8 +129,8 @@ bot.button(custom_id: /^coll_(common|rare|legendary|goddess)_(\d+)$/) do |event|
   end
 
   target_user = event.user
-  new_embed = generate_collection_page(target_user, collections, requested_page)
-  new_view  = collection_view(target_uid, requested_page, collections)
+  new_embed = generate_collection_page(target_user, requested_page)
+  new_view  = collection_view(target_uid, requested_page)
   
   event.update_message(content: nil, embeds: [new_embed], components: new_view)
 end
@@ -122,34 +143,32 @@ end
 
 bot.command(:buy, description: 'Buy a character or tech upgrade (Usage: !buy <Name>)', min_args: 1, category: 'Gacha') do |event, *name_args|
   uid = event.user.id
-  search_name = name_args.join(' ').downcase
+  search_name = name_args.join(' ').downcase.strip
 
   if BLACK_MARKET_ITEMS.key?(search_name)
     item_data = BLACK_MARKET_ITEMS[search_name]
     price = item_data[:price]
 
-    if coins[uid] < price
-      send_embed(event, title: "#{EMOJIS['nervous']} Insufficient Funds", description: "You need **#{price}** #{EMOJIS['s_coin']} to buy the #{item_data[:name]}.\nYou currently have **#{coins[uid]}** #{EMOJIS['s_coin']}.")
+    if DB.get_coins(uid) < price
+      send_embed(event, title: "#{EMOJIS['nervous']} Insufficient Funds", description: "You need **#{price}** #{EMOJIS['s_coin']} to buy the #{item_data[:name]}.\nYou currently have **#{DB.get_coins(uid)}** #{EMOJIS['s_coin']}.")
       next
     end
 
-    if item_data[:type] == 'upgrade' && inventory[uid] && inventory[uid][search_name] && inventory[uid][search_name] >= 1
+    inv = DB.get_inventory(uid)
+    if item_data[:type] == 'upgrade' && inv[search_name] && inv[search_name] >= 1
       send_embed(event, title: "#{EMOJIS['confused']} Already Owned", description: "You already have the **#{item_data[:name]}** equipped in your setup!")
       next
     end
 
-    coins[uid] -= price
-    inventory[uid] ||= {}
-    inventory[uid][search_name] ||= 0
-    inventory[uid][search_name] += 1
+    DB.add_coins(uid, -price)
+    DB.add_inventory(uid, search_name, 1)
 
     if search_name == 'gamer fuel'
-      inventory[uid][search_name] -= 1 
-      economy_cooldowns[uid]['stream_at'] = nil
-      economy_cooldowns[uid]['post_at'] = nil
-      economy_cooldowns[uid]['collab_at'] = nil
+      DB.remove_inventory(uid, search_name, 1)
+      DB.set_cooldown(uid, 'stream', nil)
+      DB.set_cooldown(uid, 'post', nil)
+      DB.set_cooldown(uid, 'collab', nil)
       
-      # FIX: Removed the custom color tag here!
       send_embed(event, title: "🥫 Gamer Fuel Consumed!", description: "You cracked open a cold one and chugged it.\n**ALL your content creation cooldowns have been reset!** Get back to the grind.")
       next
     end
@@ -182,22 +201,22 @@ bot.command(:buy, description: 'Buy a character or tech upgrade (Usage: !buy <Na
     next
   end
 
-  if coins[uid] < price
+  if DB.get_coins(uid) < price
     send_embed(
       event,
       title: "#{EMOJIS['nervous']} Insufficient Funds",
-      description: "You need **#{price}** #{EMOJIS['s_coin']} to buy a #{rarity.capitalize} character.\nYou currently have **#{coins[uid]}** #{EMOJIS['s_coin']}."
+      description: "You need **#{price}** #{EMOJIS['s_coin']} to buy a #{rarity.capitalize} character.\nYou currently have **#{DB.get_coins(uid)}** #{EMOJIS['s_coin']}."
     )
     next
   end
 
-  coins[uid] -= price
+  DB.add_coins(uid, -price)
   
   name = char_data[:name]
   gif_url = char_data[:gif]
 
-  collections[uid][name] ||= { 'rarity' => rarity, 'count' => 0 }
-  collections[uid][name]['count'] += 1
+  DB.add_character(uid, name, rarity.to_s, 1)
+  new_count = DB.get_collection(uid)[name]['count']
 
   emoji = case rarity
           when 'goddess'   then '💎'
@@ -209,20 +228,19 @@ bot.command(:buy, description: 'Buy a character or tech upgrade (Usage: !buy <Na
   send_embed(
     event,
     title: "#{EMOJIS['coins']} Purchase Successful!",
-    description: "#{emoji} You directly purchased **#{name}** for **#{price}** #{EMOJIS['s_coin']}!\nYou now own **#{collections[uid][name]['count']}** of them.",
+    description: "#{emoji} You directly purchased **#{name}** for **#{price}** #{EMOJIS['s_coin']}!\nYou now own **#{new_count}** of them.",
     fields: [
-      { name: 'Remaining Balance', value: "#{coins[uid]} #{EMOJIS['s_coin']}", inline: true }
+      { name: 'Remaining Balance', value: "#{DB.get_coins(uid)} #{EMOJIS['s_coin']}", inline: true }
     ],
     image: gif_url
   )
-  
   nil
 end
 
 bot.command(:view, description: 'Look at a specific character you own', min_args: 1, category: 'Gacha') do |event, *name_args|
   uid = event.user.id
   search_name = name_args.join(' ')
-  user_chars = collections[uid] || {}
+  user_chars = DB.get_collection(uid)
   
   owned_name = user_chars.keys.find { |k| k.downcase == search_name.downcase }
   
@@ -263,7 +281,7 @@ end
 bot.command(:ascend, description: 'Fuse 5 duplicate characters into a Shiny Ascended version!', min_args: 1, category: 'Gacha') do |event, *name_args|
   uid = event.user.id
   search_name = name_args.join(' ').downcase
-  user_chars = collections[uid] || {}
+  user_chars = DB.get_collection(uid)
   
   owned_name = user_chars.keys.find { |k| k.downcase == search_name }
 
@@ -278,18 +296,14 @@ bot.command(:ascend, description: 'Fuse 5 duplicate characters into a Shiny Asce
   end
 
   ascension_cost = 5000
-  if coins[uid] < ascension_cost
-    send_embed(event, title: "#{EMOJIS['nervous']} Insufficient Funds", description: "The ritual costs **#{ascension_cost}** #{EMOJIS['s_coin']}. You currently have **#{coins[uid]}** #{EMOJIS['s_coin']}.")
+  if DB.get_coins(uid) < ascension_cost
+    send_embed(event, title: "#{EMOJIS['nervous']} Insufficient Funds", description: "The ritual costs **#{ascension_cost}** #{EMOJIS['s_coin']}. You currently have **#{DB.get_coins(uid)}** #{EMOJIS['s_coin']}.")
     next
   end
 
-  # Perform the Ritual
-  coins[uid] -= ascension_cost
-  user_chars[owned_name]['count'] -= 5
-  user_chars[owned_name]['ascended'] ||= 0
-  user_chars[owned_name]['ascended'] += 1
+  DB.add_coins(uid, -ascension_cost)
+  DB.ascend_character(uid, owned_name)
 
-  # FIX: Removed the custom color tag here!
   send_embed(
     event,
     title: "✨ Ascension Complete! ✨",
@@ -332,7 +346,7 @@ bot.button(custom_id: /^shop_sell_(\d+)$/) do |event|
     next
   end
 
-  user_collection = collections[uid] || {}
+  user_collection = DB.get_collection(uid)
   total_earned = 0
   dupes_sold = 0
 
@@ -344,7 +358,8 @@ bot.button(custom_id: /^shop_sell_(\d+)$/) do |event|
       
       total_earned += coins_earned
       dupes_sold += sell_amount
-      data['count'] = 1 
+      
+      DB.remove_character(uid, name, sell_amount)
     end
   end
 
@@ -354,9 +369,9 @@ bot.button(custom_id: /^shop_sell_(\d+)$/) do |event|
   end
 
   if dupes_sold > 0
-    coins[uid] += total_earned
+    DB.add_coins(uid, total_earned)
     embed.title = "#{EMOJIS['rich']} Duplicates Sold!"
-    embed.description = "You converted **#{dupes_sold}** duplicate characters into **#{total_earned}** #{EMOJIS['s_coin']}!\n\nNew Balance: **#{coins[uid]}** #{EMOJIS['s_coin']}."
+    embed.description = "You converted **#{dupes_sold}** duplicate characters into **#{total_earned}** #{EMOJIS['s_coin']}!\n\nNew Balance: **#{DB.get_coins(uid)}** #{EMOJIS['s_coin']}."
     embed.color = 0x00FF00
   else
     embed.title = "#{EMOJIS['confused']} No Duplicates"
@@ -367,12 +382,8 @@ bot.button(custom_id: /^shop_sell_(\d+)$/) do |event|
   event.update_message(content: nil, embeds: [embed], components: view)
 end
 
-# =========================
-# TECH SHOP LISTENER
-# =========================
 bot.button(custom_id: /^shop_blackmarket_(\d+)$/) do |event|
   begin
-    puts ">>> [DEBUG] Black Market button clicked!"
     uid = event.custom_id.match(/^shop_blackmarket_(\d+)$/)[1].to_i
     
     if event.user.id != uid
@@ -382,11 +393,8 @@ bot.button(custom_id: /^shop_blackmarket_(\d+)$/) do |event|
 
     new_embed, new_view = build_blackmarket_page(uid)
     event.update_message(content: nil, embeds: [new_embed], components: new_view)
-    puts ">>> [DEBUG] Black Market menu successfully rendered!"
-    
   rescue => e
-    puts "!!! [CRITICAL ERROR] in Black Market Button !!!"
+    puts "!!! [ERROR] in Black Market Button !!!"
     puts e.message
-    puts e.backtrace
   end
 end

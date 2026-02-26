@@ -84,17 +84,17 @@ bot.command(:about, description: 'Learn more about Blossom and her creator!', ca
 end
 
 bot.command(:hug, description: 'Send a hug with a random GIF', category: 'Fun') do |event|
-  interaction_embed(event, 'hug', HUG_GIFS, interactions)
+  interaction_embed(event, 'hug', HUG_GIFS)
   nil
 end
 
 bot.command(:slap, description: 'Send a playful slap with a random GIF', category: 'Fun') do |event|
-  interaction_embed(event, 'slap', SLAP_GIFS, interactions)
+  interaction_embed(event, 'slap', SLAP_GIFS)
   nil
 end
 
 bot.command(:interactions, description: 'Show your hug/slap stats', category: 'Fun') do |event|
-  data = interactions[event.user.id]
+  data = DB.get_interactions(event.user.id)
 
   hug  = data['hug']
   slap = data['slap']

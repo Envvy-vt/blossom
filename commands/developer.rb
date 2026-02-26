@@ -1,7 +1,3 @@
-# =========================
-# DEVELOPER TOOLS
-# =========================
-
 bot.command(:levelup, description: 'Enable or disable level-up messages for this server (Admin only)', category: 'Developer') do |event, state|
   unless event.server
     send_embed(event, title: "#{EMOJIS['developer']} Level-Up Settings", description: 'This command can only be used in a server.')
@@ -14,15 +10,17 @@ bot.command(:levelup, description: 'Enable or disable level-up messages for this
     next
   end
 
+  sid = event.server.id
+
   case state&.downcase
   when 'on', 'enable', 'enabled'
-    levelup_settings[event.server.id] = true
+    DB.set_levelup(sid, true)
     send_embed(event, title: "#{EMOJIS['developer']} Level-Up Settings", description: 'Level-up messages are now **enabled** in this server.')
   when 'off', 'disable', 'disabled'
-    levelup_settings[event.server.id] = false
+    DB.set_levelup(sid, false)
     send_embed(event, title: "#{EMOJIS['developer']} Level-Up Settings", description: 'Level-up messages are now **disabled** in this server.')
   else
-    current = levelup_enabled_for?(event.server.id, levelup_settings) ? 'enabled' : 'disabled'
+    current = DB.levelup_enabled?(sid) ? 'enabled' : 'disabled'
     send_embed(event, title: "#{EMOJIS['developer']} Level-Up Settings", description: "Usage: `!levelup on` or `!levelup off`\nCurrently **#{current}**.")
   end
   nil
@@ -49,7 +47,9 @@ bot.command(:setlevel, description: 'Set a user\'s server level (Admin Only)', m
 
   sid = event.server.id
   uid = target_user.id
-  users[sid][uid]['level'] = new_level
+  user = DB.get_user_xp(sid, uid)
+
+  DB.update_user_xp(sid, uid, user['xp'], new_level, user['last_xp_at'])
 
   send_embed(event, title: "#{EMOJIS['developer']} Admin Override", description: "Successfully set #{target_user.mention}'s level to **#{new_level}**.")
   nil
@@ -76,17 +76,22 @@ bot.command(:addxp, description: 'Add or remove server XP from a user (Admin Onl
 
   sid = event.server.id
   uid = target_user.id
-  users[sid][uid]['xp'] += amount
-  users[sid][uid]['xp'] = 0 if users[sid][uid]['xp'] < 0
+  user = DB.get_user_xp(sid, uid)
+  
+  new_xp = user['xp'] + amount
+  new_xp = 0 if new_xp < 0
+  new_level = user['level']
 
-  needed = users[sid][uid]['level'] * 100
-  while users[sid][uid]['xp'] >= needed
-    users[sid][uid]['xp'] -= needed
-    users[sid][uid]['level'] += 1
-    needed = users[sid][uid]['level'] * 100
+  needed = new_level * 100
+  while new_xp >= needed
+    new_xp -= needed
+    new_level += 1
+    needed = new_level * 100
   end
 
-  send_embed(event, title: "#{EMOJIS['developer']} Admin Override", description: "Successfully added **#{amount}** XP to #{target_user.mention}.\nThey are now **Level #{users[sid][uid]['level']}** with **#{users[sid][uid]['xp']}** XP.")
+  DB.update_user_xp(sid, uid, new_xp, new_level, user['last_xp_at'])
+
+  send_embed(event, title: "#{EMOJIS['developer']} Admin Override", description: "Successfully added **#{amount}** XP to #{target_user.mention}.\nThey are now **Level #{new_level}** with **#{new_xp}** XP.")
   nil
 end
 
@@ -105,9 +110,9 @@ bot.command(:addcoins, description: 'Add or remove coins from a user (Dev Only)'
   end
 
   uid = target_user.id
-  coins[uid] += amount
+  DB.add_coins(uid, amount)
 
-  send_embed(event, title: "#{EMOJIS['developer']} Developer Override", description: "Successfully added **#{amount}** #{EMOJIS['s_coin']} to #{target_user.mention}.\nTheir new balance is **#{coins[uid]}**.")
+  send_embed(event, title: "#{EMOJIS['developer']} Developer Override", description: "Successfully added **#{amount}** #{EMOJIS['s_coin']} to #{target_user.mention}.\nTheir new balance is **#{DB.get_coins(uid)}**.")
   nil
 end
 
@@ -126,9 +131,9 @@ bot.command(:setcoins, description: 'Set a user\'s balance to an exact amount (D
   end
 
   uid = target_user.id
-  coins[uid] = amount
+  DB.set_coins(uid, amount)
 
-  send_embed(event, title: "#{EMOJIS['developer']} Developer Override", description: "#{target_user.mention}'s balance has been forcefully set to **#{coins[uid]}** #{EMOJIS['s_coin']}.")
+  send_embed(event, title: "#{EMOJIS['developer']} Developer Override", description: "#{target_user.mention}'s balance has been forcefully set to **#{DB.get_coins(uid)}** #{EMOJIS['s_coin']}.")
   nil
 end
 

@@ -1,2 +1,6 @@
 .env
 blossom.db
+*.dll
+*.so
+*.dylib
+music/

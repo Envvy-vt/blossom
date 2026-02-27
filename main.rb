@@ -323,6 +323,7 @@ eval(File.read(File.join(__dir__, 'commands/gacha.rb')), binding)
 eval(File.read(File.join(__dir__, 'commands/arcade.rb')), binding)
 eval(File.read(File.join(__dir__, 'commands/trade.rb')), binding)
 eval(File.read(File.join(__dir__, 'commands/developer.rb')), binding)
+eval(File.read(File.join(__dir__, 'commands/leveling.rb')), binding)
 
 # =========================
 # 7. RUN

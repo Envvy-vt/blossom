@@ -1,109 +1,4 @@
 # =========================
-# LEVELING SYSTEM
-# =========================
-
-bot.message do |event|
-  next if event.user.bot_account?
-  next unless event.server 
-
-  sid  = event.server.id
-  uid  = event.user.id
-  user = DB.get_user_xp(sid, uid)
-
-  now = Time.now
-  if user['last_xp_at'] && (now - user['last_xp_at']) < MESSAGE_COOLDOWN
-    next
-  end
-
-  new_xp = user['xp'] + XP_PER_MESSAGE
-  new_level = user['level']
-  DB.add_coins(uid, COINS_PER_MESSAGE)
-
-  needed = new_level * 100
-  if new_xp >= needed
-    new_xp -= needed
-    new_level += 1
-
-    if DB.levelup_enabled?(sid)
-      send_embed(
-        event,
-        title: "#{EMOJIS['LevelUp']}",
-        description: "#{event.user.mention} reached level **#{new_level}**!",
-        fields: [
-          { name: 'XP Remaining', value: "#{new_xp}/#{new_level * 100}", inline: true },
-          { name: 'Coins', value: "#{DB.get_coins(uid)} #{EMOJIS['s_coin']}", inline: true }
-        ]
-      )
-    end
-  end
-  
-  DB.update_user_xp(sid, uid, new_xp, new_level, now)
-end
-
-bot.member_leave do |event|
-  DB.remove_user_xp(event.server.id, event.user.id)
-end
-
-bot.command(:level, description: 'Show a user\'s level and XP for this server', category: 'Utility') do |event|
-  unless event.server
-    event.respond("#{EMOJIS['x_']} This command can only be used in a server!")
-    next
-  end
-
-  target_user = event.message.mentions.first || event.user
-  sid  = event.server.id
-  uid  = target_user.id
-  user = DB.get_user_xp(sid, uid)
-  needed = user['level'] * 100
-
-  dev_badge = (uid == DEV_ID) ? "#{EMOJIS['developer']} **Verified Bot Developer**" : ""
-
-  send_embed(
-    event,
-    title: "#{EMOJIS['crown']} #{target_user.display_name}'s Server Level",
-    description: dev_badge, 
-    fields: [
-      { name: 'Level', value: user['level'].to_s, inline: true },
-      { name: 'XP', value: "#{user['xp']}/#{needed}", inline: true },
-      { name: 'Coins', value: "#{DB.get_coins(uid)} #{EMOJIS['s_coin']}", inline: true }
-    ]
-  )
-  nil
-end
-
-bot.command(:leaderboard, description: 'Show top users by level and XP for this server', category: 'Fun') do |event|
-  unless event.server
-    event.respond("#{EMOJIS['x_']} This command can only be used in a server!")
-    next
-  end
-
-  sid = event.server.id
-  current_member_ids = event.server.members.map(&:id)
-  
-  # Fetch Top 100 from DB, then filter to ensure we show 10 people currently in server
-  active_users = []
-  DB.get_top_users(sid, 100).each do |row|
-    if current_member_ids.include?(row['user_id'])
-      active_users << row
-      break if active_users.size >= 10
-    end
-  end
-
-  if active_users.empty?
-    send_embed(event, title: "#{EMOJIS['crown']} Server Leaderboard", description: 'Nobody has gained any XP here yet.')
-  else
-    desc = active_users.each_with_index.map do |row, index|
-      user_obj = event.bot.user(row['user_id'])
-      name = user_obj ? user_obj.display_name : "User #{row['user_id']}"
-      "##{index + 1} — **#{name}**: Level #{row['level']} | **#{DB.get_coins(row['user_id'])}** #{EMOJIS['s_coin']}"
-    end.join("\n")
-
-    send_embed(event, title: "#{EMOJIS['crown']} Server Leaderboard", description: desc)
-  end
-  nil
-end
-
-# =========================
 # ECONOMY COMMANDS
 # =========================
 
@@ -111,9 +6,6 @@ bot.command(:balance, description: 'Show a user\'s coin balance, gacha stats, an
   target_user = event.message.mentions.first || event.user
   uid = target_user.id
 
-  # =========================
-  # EASTER EGG: BLOSSOM'S STASH
-  # =========================
   if uid == event.bot.profile.id
     setup_text = ""
     consumables_text = ""
@@ -130,10 +22,10 @@ bot.command(:balance, description: 'Show a user\'s coin balance, gacha stats, an
       { name: "#{EMOJIS['rich']} Bank Account", value: "**7,777,777** #{EMOJIS['s_coin']}", inline: false },
       { name: '🖥️ Stream Setup', value: setup_text, inline: true },
       { name: '🎒 Consumables', value: consumables_text, inline: true },
-      { name: "\u200B", value: "\u200B", inline: false }, # Spacer to start Collection
+      { name: "\u200B", value: "\u200B", inline: false }, 
       { name: '⭐ Commons', value: "Owned: **All / #{TOTAL_UNIQUE_CHARS['common']}**\nAscended: **All** #{EMOJIS['neonsparkle']}", inline: true },
       { name: '✨ Rares', value: "Owned: **All / #{TOTAL_UNIQUE_CHARS['rare']}**\nAscended: **All** #{EMOJIS['neonsparkle']}", inline: true },
-      { name: "\u200B", value: "\u200B", inline: false }, # Spacer to force a new row!
+      { name: "\u200B", value: "\u200B", inline: false }, 
       { name: '🌟 Legendaries', value: "Owned: **All / #{TOTAL_UNIQUE_CHARS['legendary']}**\nAscended: **All** #{EMOJIS['neonsparkle']}", inline: true }
     ]
     
@@ -149,18 +41,14 @@ bot.command(:balance, description: 'Show a user\'s coin balance, gacha stats, an
     )
     next
   end
-  # =========================
 
-  # NORMAL PLAYER LOGIC
   user_collection = DB.get_collection(uid)
   
-  # Calculate Total Owned
   common_owned    = user_collection.values.count { |c| c['rarity'] == 'common' && (c['count'] > 0 || c['ascended'] > 0) }
   rare_owned      = user_collection.values.count { |c| c['rarity'] == 'rare' && (c['count'] > 0 || c['ascended'] > 0) }
   legendary_owned = user_collection.values.count { |c| c['rarity'] == 'legendary' && (c['count'] > 0 || c['ascended'] > 0) }
   goddess_owned   = user_collection.values.count { |c| c['rarity'] == 'goddess' && (c['count'] > 0 || c['ascended'] > 0) }
 
-  # Calculate Unique Ascended
   common_asc      = user_collection.values.count { |c| c['rarity'] == 'common' && c['ascended'] > 0 }
   rare_asc        = user_collection.values.count { |c| c['rarity'] == 'rare' && c['ascended'] > 0 }
   legendary_asc   = user_collection.values.count { |c| c['rarity'] == 'legendary' && c['ascended'] > 0 }
@@ -188,10 +76,10 @@ bot.command(:balance, description: 'Show a user\'s coin balance, gacha stats, an
     { name: "#{EMOJIS['rich']} Bank Account", value: "**#{DB.get_coins(uid)}** #{EMOJIS['s_coin']}", inline: false },
     { name: '🖥️ Stream Setup', value: setup_text, inline: true },
     { name: '🎒 Consumables', value: consumables_text, inline: true },
-    { name: "\u200B", value: "\u200B", inline: false }, # Spacer to start Collection
+    { name: "\u200B", value: "\u200B", inline: false }, 
     { name: '⭐ Commons', value: "Owned: **#{common_owned} / #{TOTAL_UNIQUE_CHARS['common']}**\nAscended: **#{common_asc}** #{EMOJIS['neonsparkle']}", inline: true },
     { name: '✨ Rares', value: "Owned: **#{rare_owned} / #{TOTAL_UNIQUE_CHARS['rare']}**\nAscended: **#{rare_asc}** #{EMOJIS['neonsparkle']}", inline: true },
-    { name: "\u200B", value: "\u200B", inline: false }, # Spacer to force a new row!
+    { name: "\u200B", value: "\u200B", inline: false }, 
     { name: '🌟 Legendaries', value: "Owned: **#{legendary_owned} / #{TOTAL_UNIQUE_CHARS['legendary']}**\nAscended: **#{legendary_asc}** #{EMOJIS['neonsparkle']}", inline: true }
   ]
 

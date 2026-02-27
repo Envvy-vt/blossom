@@ -87,27 +87,33 @@ bot.command(:summon, description: 'Roll the gacha!', category: 'Gacha') do |even
   nil
 end
 
-def get_collection_page_data(uid, page_num)
+def get_collection_pages(uid)
   user_collection = DB.get_collection(uid)
   
   grouped = { 'common' => [], 'rare' => [], 'legendary' => [], 'goddess' => [] }
   user_collection.each do |name, data|
-    if data['count'] > 0 || data['ascended'] > 0
-      # We now store the count so we can display it!
-      grouped[data['rarity']] << { name: name, ascended: data['ascended'], count: data['count'] }
+    # Force the counts to integers using .to_i
+    count = data['count'].to_i
+    ascended = data['ascended'].to_i
+    
+    if count > 0 || ascended > 0
+      grouped[data['rarity']] << { name: name, ascended: ascended, count: count }
     end
   end
 
-  all_lines = []
-  
-  # Flipped order: Common -> Rare -> Legendary -> Goddess
-  ['common', 'rare', 'legendary', 'goddess'].each do |rarity|
+  available_rarities = ['common', 'rare', 'legendary']
+  if TOTAL_UNIQUE_CHARS['goddess'] && TOTAL_UNIQUE_CHARS['goddess'] > 0
+    available_rarities << 'goddess'
+  end
+
+  pages = []
+
+  available_rarities.each do |rarity|
     chars = grouped[rarity]
-    next if rarity == 'goddess' && (TOTAL_UNIQUE_CHARS['goddess'].nil? || TOTAL_UNIQUE_CHARS['goddess'] == 0)
-    
     owned = chars.size
     total = TOTAL_UNIQUE_CHARS[rarity] || 0
-    asc   = chars.count { |c| c[:ascended] > 0 }
+    # Recalculate the sum of ascended characters for the header
+    asc_total = chars.count { |c| c[:ascended] > 0 }
     
     emoji = case rarity
             when 'goddess'   then '💎'
@@ -116,34 +122,26 @@ def get_collection_page_data(uid, page_num)
             else '⭐'
             end
     
-    all_lines << "#{emoji} **#{rarity.capitalize}** (Owned: #{owned}/#{total} | Ascended: #{asc})"
+    page_text = "#{emoji} **#{rarity.capitalize} Characters** (Owned: #{owned}/#{total} | Ascended: #{asc_total})\n\n"
     
     if chars.empty?
-      all_lines << "> *None yet*"
+      page_text += "> *None yet!*"
     else
-      chars.sort_by! { |c| c[:name] } # Alphabetical sorting
+      chars.sort_by! { |c| c[:name] }
       chars.each do |c|
-        # Added the (xCount) so users can see their duplicates!
         if c[:ascended] > 0
-          all_lines << "> **#{c[:name]}** ✨ (x#{c[:count]})"
+          # We check if they have base copies too
+          extra_dupes = c[:count] > 0 ? " | Base: #{c[:count]}" : ""
+          page_text += "> **#{c[:name]}** ✨ (Ascended: #{c[:ascended]}#{extra_dupes})\n"
         else
-          all_lines << "> #{c[:name]} (x#{c[:count]})"
+          page_text += "> #{c[:name]} (x#{c[:count]})\n"
         end
       end
     end
-    all_lines << "" 
+    pages << page_text
   end
 
-  all_lines.pop if all_lines.last == "" 
-  
-  pages = all_lines.each_slice(15).to_a
-  pages = [["*No characters found!*"]] if pages.empty?
-  
-  page_num = 0 if page_num < 0
-  page_num = pages.size - 1 if page_num >= pages.size
-
-  # Return exactly what the commands need to build the UI
-  { text: pages[page_num].join("\n"), current: page_num, total: pages.size }
+  pages
 end
 
 bot.command(:collection, description: 'View all the characters you own', category: 'Gacha') do |event|
@@ -151,23 +149,24 @@ bot.command(:collection, description: 'View all the characters you own', categor
   uid = target_user.id
   title = "📚 #{target_user.display_name}'s Character Collection"
 
-  page_data = get_collection_page_data(uid, 0)
+  # FIX: Make sure this says get_collection_pages
+  pages = get_collection_pages(uid)
+  
+  rarity_names = ["Commons", "Rares", "Legendaries", "Goddess"]
 
   embed = Discordrb::Webhooks::Embed.new(
     title: title,
-    description: page_data[:text],
+    description: pages[0],
     color: NEON_COLORS.sample,
-    footer: Discordrb::Webhooks::EmbedFooter.new(text: "Page 1 of #{page_data[:total]} | ✨ = Max Ascended")
+    footer: Discordrb::Webhooks::EmbedFooter.new(text: "#{rarity_names[0]} | Page 1 of #{pages.size}")
   )
 
-  # Explicitly build the view without block yielding just to be 100% safe
   view = Discordrb::Components::View.new
   view.row do |r|
     r.button(custom_id: "col_#{uid}_-1", label: "◀ Prev", style: :secondary, disabled: true)
-    r.button(custom_id: "col_#{uid}_1", label: "Next ▶", style: :secondary, disabled: page_data[:total] <= 1)
+    r.button(custom_id: "col_#{uid}_1", label: "Next ▶", style: :secondary, disabled: pages.size <= 1)
   end
 
-  # The Fix: Exact argument matching to your working shop command
   event.channel.send_message(nil, false, embed, nil, { replied_user: false }, event.message, view)
   nil
 end
@@ -486,19 +485,27 @@ bot.button(custom_id: /^col_/) do |event|
   target_page = page_str.to_i
   
   title = event.message.embeds.first.title
-  page_data = get_collection_page_data(uid, target_page)
   
+  # FIX: Call the new method name here!
+  pages = get_collection_pages(uid)
+  
+  # Safety bounds check
+  target_page = 0 if target_page < 0
+  target_page = pages.size - 1 if target_page >= pages.size
+
+  rarity_names = ["Commons", "Rares", "Legendaries", "Goddess"]
+
   embed = Discordrb::Webhooks::Embed.new(
     title: title,
-    description: page_data[:text],
+    description: pages[target_page],
     color: NEON_COLORS.sample,
-    footer: Discordrb::Webhooks::EmbedFooter.new(text: "Page #{page_data[:current] + 1} of #{page_data[:total]} | ✨ = Max Ascended")
+    footer: Discordrb::Webhooks::EmbedFooter.new(text: "#{rarity_names[target_page]} | Page #{target_page + 1} of #{pages.size}")
   )
 
   view = Discordrb::Components::View.new
   view.row do |r|
-    r.button(custom_id: "col_#{uid}_#{page_data[:current] - 1}", label: "◀ Prev", style: :secondary, disabled: page_data[:current] <= 0)
-    r.button(custom_id: "col_#{uid}_#{page_data[:current] + 1}", label: "Next ▶", style: :secondary, disabled: page_data[:current] >= (page_data[:total] - 1))
+    r.button(custom_id: "col_#{uid}_#{target_page - 1}", label: "◀ Prev", style: :secondary, disabled: target_page <= 0)
+    r.button(custom_id: "col_#{uid}_#{target_page + 1}", label: "Next ▶", style: :secondary, disabled: target_page >= (pages.size - 1))
   end
 
   event.update_message(content: nil, embeds: [embed], components: view)

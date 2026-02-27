@@ -158,6 +158,18 @@ class BotDatabase
     @db.execute("INSERT INTO server_settings (server_id, levelup_enabled) VALUES (?, ?) ON CONFLICT(server_id) DO UPDATE SET levelup_enabled = ?", [sid, val, val])
   end
 
+  def set_levelup_config(server_id, channel_id, enabled = true)
+    @db.execute("CREATE TABLE IF NOT EXISTS server_configs (server_id INTEGER PRIMARY KEY, levelup_channel INTEGER, levelup_enabled INTEGER)")
+    @db.execute("INSERT OR REPLACE INTO server_configs (server_id, levelup_channel, levelup_enabled) VALUES (?, ?, ?)", [server_id, channel_id, enabled ? 1 : 0])
+  end
+
+  def get_levelup_config(server_id)
+    @db.execute("CREATE TABLE IF NOT EXISTS server_configs (server_id INTEGER PRIMARY KEY, levelup_channel INTEGER, levelup_enabled INTEGER)")
+    result = @db.execute("SELECT levelup_channel, levelup_enabled FROM server_configs WHERE server_id = ?", [server_id]).first
+    return { channel: nil, enabled: true } unless result
+    { channel: result[0], enabled: result[1] == 1 }
+  end
+
   # =========================
   # BLACKLIST
   # =========================
@@ -176,7 +188,7 @@ class BotDatabase
     @db.execute("SELECT user_id FROM blacklist").map { |row| row['user_id'] }
   end
 
-end # <--- MAKE SURE THIS FINAL 'END' IS HERE!
+end # <--- This is the final end of the BotDatabase class!
 
 # Instantiate the global DB object!
 DB = BotDatabase.new

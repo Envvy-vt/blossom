@@ -6,10 +6,13 @@ bot.command(:summon, description: 'Roll the gacha!', category: 'Gacha') do |even
   uid = event.user.id
   now = Time.now
   last_used = DB.get_cooldown(uid, 'summon')
+  inv = DB.get_inventory(uid)
 
-  # 600 seconds = 10 minutes
-  if last_used && (now - last_used) < 600
-    ready_time = (last_used + 600).to_i
+  # Check if they own the Gacha Pass (300s = 5m, otherwise 600s = 10m)
+  cooldown_duration = (inv['gacha pass'] && inv['gacha pass'] > 0) ? 300 : 600
+
+  if last_used && (now - last_used) < cooldown_duration
+    ready_time = (last_used + cooldown_duration).to_i
     embed = Discordrb::Webhooks::Embed.new(
       title: "#{EMOJIS['drink']} Portal Recharging",
       description: "Your gacha energy is depleted!\nThe portal will be ready <t:#{ready_time}:R>.",
@@ -84,11 +87,87 @@ bot.command(:summon, description: 'Roll the gacha!', category: 'Gacha') do |even
   nil
 end
 
-bot.command(:collection, description: 'View your vtuber collection', category: 'Fun') do |event|
-  target_user = event.user
-  embed = generate_collection_page(target_user, 'common')
-  view  = collection_view(target_user.id, 'common') 
+def get_collection_page_data(uid, page_num)
+  user_collection = DB.get_collection(uid)
   
+  grouped = { 'common' => [], 'rare' => [], 'legendary' => [], 'goddess' => [] }
+  user_collection.each do |name, data|
+    if data['count'] > 0 || data['ascended'] > 0
+      # We now store the count so we can display it!
+      grouped[data['rarity']] << { name: name, ascended: data['ascended'], count: data['count'] }
+    end
+  end
+
+  all_lines = []
+  
+  # Flipped order: Common -> Rare -> Legendary -> Goddess
+  ['common', 'rare', 'legendary', 'goddess'].each do |rarity|
+    chars = grouped[rarity]
+    next if rarity == 'goddess' && (TOTAL_UNIQUE_CHARS['goddess'].nil? || TOTAL_UNIQUE_CHARS['goddess'] == 0)
+    
+    owned = chars.size
+    total = TOTAL_UNIQUE_CHARS[rarity] || 0
+    asc   = chars.count { |c| c[:ascended] > 0 }
+    
+    emoji = case rarity
+            when 'goddess'   then '💎'
+            when 'legendary' then '🌟'
+            when 'rare'      then '✨'
+            else '⭐'
+            end
+    
+    all_lines << "#{emoji} **#{rarity.capitalize}** (Owned: #{owned}/#{total} | Ascended: #{asc})"
+    
+    if chars.empty?
+      all_lines << "> *None yet*"
+    else
+      chars.sort_by! { |c| c[:name] } # Alphabetical sorting
+      chars.each do |c|
+        # Added the (xCount) so users can see their duplicates!
+        if c[:ascended] > 0
+          all_lines << "> **#{c[:name]}** ✨ (x#{c[:count]})"
+        else
+          all_lines << "> #{c[:name]} (x#{c[:count]})"
+        end
+      end
+    end
+    all_lines << "" 
+  end
+
+  all_lines.pop if all_lines.last == "" 
+  
+  pages = all_lines.each_slice(15).to_a
+  pages = [["*No characters found!*"]] if pages.empty?
+  
+  page_num = 0 if page_num < 0
+  page_num = pages.size - 1 if page_num >= pages.size
+
+  # Return exactly what the commands need to build the UI
+  { text: pages[page_num].join("\n"), current: page_num, total: pages.size }
+end
+
+bot.command(:collection, description: 'View all the characters you own', category: 'Gacha') do |event|
+  target_user = event.message.mentions.first || event.user
+  uid = target_user.id
+  title = "📚 #{target_user.display_name}'s Character Collection"
+
+  page_data = get_collection_page_data(uid, 0)
+
+  embed = Discordrb::Webhooks::Embed.new(
+    title: title,
+    description: page_data[:text],
+    color: NEON_COLORS.sample,
+    footer: Discordrb::Webhooks::EmbedFooter.new(text: "Page 1 of #{page_data[:total]} | ✨ = Max Ascended")
+  )
+
+  # Explicitly build the view without block yielding just to be 100% safe
+  view = Discordrb::Components::View.new
+  view.row do |r|
+    r.button(custom_id: "col_#{uid}_-1", label: "◀ Prev", style: :secondary, disabled: true)
+    r.button(custom_id: "col_#{uid}_1", label: "Next ▶", style: :secondary, disabled: page_data[:total] <= 1)
+  end
+
+  # The Fix: Exact argument matching to your working shop command
   event.channel.send_message(nil, false, embed, nil, { replied_user: false }, event.message, view)
   nil
 end
@@ -120,23 +199,6 @@ bot.command(:banner, description: 'Check which characters are in the gacha pool 
     fields: fields
   )
   nil
-end
-
-bot.button(custom_id: /^coll_(common|rare|legendary|goddess)_(\d+)$/) do |event|
-  match_data = event.custom_id.match(/^coll_(common|rare|legendary|goddess)_(\d+)$/)
-  requested_page = match_data[1]
-  target_uid     = match_data[2].to_i
-  
-  if event.user.id != target_uid
-    event.respond(content: "You can only flip the pages of your own collection! Use `!collection` to view yours.", ephemeral: true)
-    next
-  end
-
-  target_user = event.user
-  new_embed = generate_collection_page(target_user, requested_page)
-  new_view  = collection_view(target_uid, requested_page)
-  
-  event.update_message(content: nil, embeds: [new_embed], components: new_view)
 end
 
 bot.command(:shop, description: 'View the character shop and direct-buy prices!', category: 'Gacha') do |event|
@@ -174,6 +236,12 @@ bot.command(:buy, description: 'Buy a character or tech upgrade (Usage: !buy <Na
       DB.set_cooldown(uid, 'collab', nil)
       
       send_embed(event, title: "🥫 Gamer Fuel Consumed!", description: "You cracked open a cold one and chugged it.\n**ALL your content creation cooldowns have been reset!** Get back to the grind.")
+      next
+    elsif search_name == 'stamina pill'
+      DB.remove_inventory(uid, search_name, 1)
+      DB.set_cooldown(uid, 'summon', nil)
+      
+      send_embed(event, title: "💊 Stamina Pill Swallowed!", description: "You took a highly questionable Stamina Pill...\n**Your !summon cooldown has been instantly reset!** Get back to gambling.")
       next
     end
 
@@ -271,7 +339,7 @@ bot.command(:view, description: 'Look at a specific character you own', min_args
           end
           
   desc = "You currently own **#{count}** standard copies of this character.\n"
-  desc += "✨ **You own #{ascended} Shiny Ascended copies!** ✨" if ascended > 0
+  desc += "#{EMOJIS['neonsparkle']} **You own #{ascended} Shiny Ascended copies!** #{EMOJIS['neonsparkle']}" if ascended > 0
 
   send_embed(
     event,
@@ -310,11 +378,15 @@ bot.command(:ascend, description: 'Fuse 5 duplicate characters into a Shiny Asce
 
   send_embed(
     event,
-    title: "✨ Ascension Complete! ✨",
+    title: "#{EMOJIS['neonsparkle']} Ascension Complete! #{EMOJIS['neonsparkle']}",
     description: "You paid **#{ascension_cost}** #{EMOJIS['s_coin']} and fused 5 copies of **#{owned_name}** together!\n\nThey have been reborn as a **Shiny Ascended** character. View them in your `!collection`!"
   )
   nil
 end
+
+# =========================
+# SHOP BUTTON LISTENERS
+# =========================
 
 bot.button(custom_id: /^shop_catalog_(\d+)_(\d+)$/) do |event|
   match_data = event.custom_id.match(/^shop_catalog_(\d+)_(\d+)$/)
@@ -401,4 +473,33 @@ bot.button(custom_id: /^shop_blackmarket_(\d+)$/) do |event|
     puts "!!! [ERROR] in Black Market Button !!!"
     puts e.message
   end
+end
+
+# =========================
+# COLLECTION PAGINATION LISTENER
+# =========================
+
+# Safely listens for any button ID starting with 'col_'
+bot.button(custom_id: /^col_/) do |event|
+  _, uid_str, page_str = event.custom_id.split('_')
+  uid = uid_str.to_i
+  target_page = page_str.to_i
+  
+  title = event.message.embeds.first.title
+  page_data = get_collection_page_data(uid, target_page)
+  
+  embed = Discordrb::Webhooks::Embed.new(
+    title: title,
+    description: page_data[:text],
+    color: NEON_COLORS.sample,
+    footer: Discordrb::Webhooks::EmbedFooter.new(text: "Page #{page_data[:current] + 1} of #{page_data[:total]} | ✨ = Max Ascended")
+  )
+
+  view = Discordrb::Components::View.new
+  view.row do |r|
+    r.button(custom_id: "col_#{uid}_#{page_data[:current] - 1}", label: "◀ Prev", style: :secondary, disabled: page_data[:current] <= 0)
+    r.button(custom_id: "col_#{uid}_#{page_data[:current] + 1}", label: "Next ▶", style: :secondary, disabled: page_data[:current] >= (page_data[:total] - 1))
+  end
+
+  event.update_message(content: nil, embeds: [embed], components: view)
 end

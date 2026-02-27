@@ -110,17 +110,66 @@ end
 bot.command(:balance, description: 'Show a user\'s coin balance, gacha stats, and inventory', category: 'Economy') do |event|
   target_user = event.message.mentions.first || event.user
   uid = target_user.id
+
+  # =========================
+  # EASTER EGG: BLOSSOM'S STASH
+  # =========================
+  if uid == event.bot.profile.id
+    setup_text = ""
+    consumables_text = ""
+
+    BLACK_MARKET_ITEMS.each do |key, data|
+      if data[:type] == 'upgrade'
+        setup_text += "#{data[:name]} (x7)\n"
+      elsif data[:type] == 'consumable'
+        consumables_text += "#{data[:name]} (x7)\n"
+      end
+    end
+
+    fields = [
+      { name: "#{EMOJIS['rich']} Bank Account", value: "**7,777,777** #{EMOJIS['s_coin']}", inline: false },
+      { name: '🖥️ Stream Setup', value: setup_text, inline: true },
+      { name: '🎒 Consumables', value: consumables_text, inline: true },
+      { name: "\u200B", value: "\u200B", inline: false }, # Spacer to start Collection
+      { name: '⭐ Commons', value: "Owned: **All / #{TOTAL_UNIQUE_CHARS['common']}**\nAscended: **All** #{EMOJIS['neonsparkle']}", inline: true },
+      { name: '✨ Rares', value: "Owned: **All / #{TOTAL_UNIQUE_CHARS['rare']}**\nAscended: **All** #{EMOJIS['neonsparkle']}", inline: true },
+      { name: "\u200B", value: "\u200B", inline: false }, # Spacer to force a new row!
+      { name: '🌟 Legendaries', value: "Owned: **All / #{TOTAL_UNIQUE_CHARS['legendary']}**\nAscended: **All** #{EMOJIS['neonsparkle']}", inline: true }
+    ]
+    
+    if TOTAL_UNIQUE_CHARS['goddess'] && TOTAL_UNIQUE_CHARS['goddess'] > 0
+      fields << { name: '💎 Goddess', value: "Owned: **All / #{TOTAL_UNIQUE_CHARS['goddess']}**\nAscended: **All** #{EMOJIS['neonsparkle']}", inline: true }
+    end
+
+    send_embed(
+      event,
+      title: "🌸 Blossom's Admin Profile",
+      description: "Wait, you're checking *my* pockets? I'm the one running the arcade! I have exactly 7 of every item and a fully maxed out, shiny character collection... don't ask why.",
+      fields: fields
+    )
+    next
+  end
+  # =========================
+
+  # NORMAL PLAYER LOGIC
   user_collection = DB.get_collection(uid)
   
-  common_count    = user_collection.values.count { |c| c['rarity'] == 'common' && (c['count'] > 0 || c['ascended'] > 0) }
-  rare_count      = user_collection.values.count { |c| c['rarity'] == 'rare' && (c['count'] > 0 || c['ascended'] > 0) }
-  legendary_count = user_collection.values.count { |c| c['rarity'] == 'legendary' && (c['count'] > 0 || c['ascended'] > 0) }
-  goddess_count   = user_collection.values.count { |c| c['rarity'] == 'goddess' && (c['count'] > 0 || c['ascended'] > 0) }
+  # Calculate Total Owned
+  common_owned    = user_collection.values.count { |c| c['rarity'] == 'common' && (c['count'] > 0 || c['ascended'] > 0) }
+  rare_owned      = user_collection.values.count { |c| c['rarity'] == 'rare' && (c['count'] > 0 || c['ascended'] > 0) }
+  legendary_owned = user_collection.values.count { |c| c['rarity'] == 'legendary' && (c['count'] > 0 || c['ascended'] > 0) }
+  goddess_owned   = user_collection.values.count { |c| c['rarity'] == 'goddess' && (c['count'] > 0 || c['ascended'] > 0) }
+
+  # Calculate Unique Ascended
+  common_asc      = user_collection.values.count { |c| c['rarity'] == 'common' && c['ascended'] > 0 }
+  rare_asc        = user_collection.values.count { |c| c['rarity'] == 'rare' && c['ascended'] > 0 }
+  legendary_asc   = user_collection.values.count { |c| c['rarity'] == 'legendary' && c['ascended'] > 0 }
+  goddess_asc     = user_collection.values.count { |c| c['rarity'] == 'goddess' && c['ascended'] > 0 }
 
   user_inv = DB.get_inventory(uid)
   
   setup_text = ""
-  ['headset', 'keyboard', 'mic', 'neon sign'].each do |item_key|
+  ['headset', 'keyboard', 'mic', 'neon sign', 'gacha pass'].each do |item_key|
     if user_inv[item_key] && user_inv[item_key] > 0
       setup_text += "#{BLACK_MARKET_ITEMS[item_key][:name]}\n"
     end
@@ -128,7 +177,7 @@ bot.command(:balance, description: 'Show a user\'s coin balance, gacha stats, an
   setup_text = "None" if setup_text.empty?
 
   consumables_text = ""
-  ['rng manipulator'].each do |item_key|
+  ['rng manipulator', 'gamer fuel', 'stamina pill'].each do |item_key|
     if user_inv[item_key] && user_inv[item_key] > 0
       consumables_text += "#{BLACK_MARKET_ITEMS[item_key][:name]} (x#{user_inv[item_key]})\n"
     end
@@ -139,14 +188,15 @@ bot.command(:balance, description: 'Show a user\'s coin balance, gacha stats, an
     { name: "#{EMOJIS['rich']} Bank Account", value: "**#{DB.get_coins(uid)}** #{EMOJIS['s_coin']}", inline: false },
     { name: '🖥️ Stream Setup', value: setup_text, inline: true },
     { name: '🎒 Consumables', value: consumables_text, inline: true },
-    { name: "\u200B", value: "\u200B", inline: false },
-    { name: '⭐ Commons', value: "#{common_count} / #{TOTAL_UNIQUE_CHARS['common']}", inline: true },
-    { name: '✨ Rares', value: "#{rare_count} / #{TOTAL_UNIQUE_CHARS['rare']}", inline: true },
-    { name: '🌟 Legendaries', value: "#{legendary_count} / #{TOTAL_UNIQUE_CHARS['legendary']}", inline: true }
+    { name: "\u200B", value: "\u200B", inline: false }, # Spacer to start Collection
+    { name: '⭐ Commons', value: "Owned: **#{common_owned} / #{TOTAL_UNIQUE_CHARS['common']}**\nAscended: **#{common_asc}** #{EMOJIS['neonsparkle']}", inline: true },
+    { name: '✨ Rares', value: "Owned: **#{rare_owned} / #{TOTAL_UNIQUE_CHARS['rare']}**\nAscended: **#{rare_asc}** #{EMOJIS['neonsparkle']}", inline: true },
+    { name: "\u200B", value: "\u200B", inline: false }, # Spacer to force a new row!
+    { name: '🌟 Legendaries', value: "Owned: **#{legendary_owned} / #{TOTAL_UNIQUE_CHARS['legendary']}**\nAscended: **#{legendary_asc}** #{EMOJIS['neonsparkle']}", inline: true }
   ]
 
-  if goddess_count > 0
-    fields << { name: '💎 Goddess', value: "#{goddess_count} / #{TOTAL_UNIQUE_CHARS['goddess']}", inline: true }
+  if TOTAL_UNIQUE_CHARS['goddess'] && TOTAL_UNIQUE_CHARS['goddess'] > 0
+    fields << { name: '💎 Goddess', value: "Owned: **#{goddess_owned} / #{TOTAL_UNIQUE_CHARS['goddess']}**\nAscended: **#{goddess_asc}** #{EMOJIS['neonsparkle']}", inline: true }
   end
 
   dev_badge = (uid == DEV_ID) ? "\n\n#{EMOJIS['developer']} **Verified Bot Developer**" : ""
@@ -339,24 +389,27 @@ end
 
 bot.command(:cooldowns, description: 'Check your active timers for economy commands', category: 'Economy') do |event|
   uid = event.user.id
+  inv = DB.get_inventory(uid)
   
   check_cd = ->(type, cooldown_duration) do
     last_used = DB.get_cooldown(uid, type)
     if last_used && (Time.now - last_used) < cooldown_duration
       ready_time = last_used + cooldown_duration
-      "<t:#{ready_time.to_i}:R>"
+      "Ready <t:#{ready_time.to_i}:R>"
     else
-      "Ready!"
+      "**Ready!**"
     end
   end
 
+  summon_duration = (inv['gacha pass'] && inv['gacha pass'] > 0) ? 300 : 600
+
   cd_fields = [
-    { name: 'b!daily', value: check_cd.call('daily', DAILY_COOLDOWN), inline: true },
-    { name: 'b!work', value: check_cd.call('work', WORK_COOLDOWN), inline: true },
-    { name: 'b!stream', value: check_cd.call('stream', STREAM_COOLDOWN), inline: true },
-    { name: 'b!post', value: check_cd.call('post', POST_COOLDOWN), inline: true },
-    { name: 'b!collab', value: check_cd.call('collab', COLLAB_COOLDOWN), inline: true },
-    { name: 'b!summon', value: check_cd.call('summon', 600), inline: true } # 600s = 10m
+    { name: '!daily', value: check_cd.call('daily', DAILY_COOLDOWN), inline: true },
+    { name: '!work', value: check_cd.call('work', WORK_COOLDOWN), inline: true },
+    { name: '!stream', value: check_cd.call('stream', STREAM_COOLDOWN), inline: true },
+    { name: '!post', value: check_cd.call('post', POST_COOLDOWN), inline: true },
+    { name: '!collab', value: check_cd.call('collab', COLLAB_COOLDOWN), inline: true },
+    { name: '!summon', value: check_cd.call('summon', summon_duration), inline: true } 
   ]
 
   send_embed(

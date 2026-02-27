@@ -58,6 +58,8 @@ BLACK_MARKET_ITEMS = {
   'keyboard' => { name: '⌨️ RGB Keyboard', price: 2000, type: 'upgrade', desc: 'Type at the speed of light! Grants +25% to !work payouts.' },
   'mic' => { name: '🎙️ Studio Mic', price: 10000, type: 'upgrade', desc: 'Professional audio! Grants +10% to !stream payouts.' },
   'neon sign' => { name: '✨ Holographic Neon Sign', price: 25000, type: 'upgrade', desc: 'Attracts massive attention! Doubles your !daily reward (x2).' },
+  'gacha pass' => { name: '🎟️ Gacha Pass', price: 15000, type: 'upgrade', desc: 'Permanently cuts your summon cooldown in half (5 minutes)!' },
+  'stamina pill' => { name: '💊 Stamina Pill', price: 1500, type: 'consumable', desc: 'Instantly resets your summon cooldown!' },
   'gamer fuel' => { name: '🥫 Gamer Fuel', price: 2500, type: 'consumable', desc: 'Instantly resets your stream, post, and collab cooldowns!' },
   'rng manipulator' => { name: '🔮 RNG Manipulator', price: 5000, type: 'consumable', desc: 'Guarantees your next !summon is a Rare or higher!' }
 }.freeze

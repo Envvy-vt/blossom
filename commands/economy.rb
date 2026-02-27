@@ -362,9 +362,13 @@ bot.message do |event|
 
   uid = event.author.id
 
+  # Anti-spam: Only count message if it's a different person from the last message
   if config['last_user_id'] != uid
     config['message_count'] += 1
     config['last_user_id'] = uid
+
+    # PERSISTENCE: Save progress to the DB
+    DB.save_bomb_config(sid, true, config['channel_id'], config['threshold'], config['message_count'])
 
     if config['message_count'] >= config['threshold']
       target_channel = bot.channel(config['channel_id'], event.server)
@@ -383,9 +387,13 @@ bot.message do |event|
         target_channel.send_message(nil, false, embed, nil, nil, nil, view)
       end
 
+      # Reset logic
       config['message_count'] = 0
       config['last_user_id'] = nil
       config['threshold'] = rand(BOMB_MIN_MESSAGES..BOMB_MAX_MESSAGES)
+      
+      # PERSISTENCE: Save the reset state to the DB
+      DB.save_bomb_config(sid, true, config['channel_id'], config['threshold'], 0)
     end
   end
 end
@@ -420,4 +428,32 @@ bot.button(custom_id: /^defuse_drop_(\d+)$/) do |event|
     color: 0x00FF00
   )
   event.update_message(content: nil, embeds: [embed], components: [])
+end
+
+bot.command(:coinlb, description: 'Show the richest users globally', category: 'Economy') do |event|
+  # 1. Fetch top users by coins (we'll grab 50 to filter bots)
+  # NOTE: You'll need a DB method for this, see Step 3 below!
+  raw_top = DB.get_top_coins(50) 
+
+  active_humans = []
+  raw_top.each do |row|
+    user_obj = event.bot.user(row['user_id'])
+    if user_obj && !user_obj.bot_account?
+      active_humans << row
+      break if active_humans.size >= 10
+    end
+  end
+
+  if active_humans.empty?
+    send_embed(event, title: "#{EMOJIS['rich']} Wealth Leaderboard", description: 'The bank is currently empty!')
+  else
+    desc = active_humans.each_with_index.map do |row, index|
+      user_obj = event.bot.user(row['user_id'])
+      name = user_obj ? user_obj.display_name : "User #{row['user_id']}"
+      "##{index + 1} — **#{name}**: **#{row['coins']}** #{EMOJIS['s_coin']}"
+    end.join("\n")
+
+    send_embed(event, title: "#{EMOJIS['rich']} Global Wealth Leaderboard", description: desc)
+  end
+  nil
 end

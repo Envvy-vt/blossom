@@ -122,38 +122,41 @@ bot.command(:level, description: 'Show a user\'s level and XP for this server', 
   nil
 end
 
-bot.command(:leaderboard, description: 'Show top users by level and XP for this server', category: 'Fun') do |event|
+bot.command(:leaderboard, description: 'Show top users by level for this server', category: 'Fun') do |event|
   unless event.server
     event.respond("#{EMOJIS['x_']} This command can only be used in a server!")
     next
   end
 
   sid = event.server.id
-  current_member_ids = event.server.members.map(&:id)
+  # 1. Fetch a larger pool so we have room to filter out bots
+  raw_top = DB.get_top_users(sid, 50) 
   
-  active_users = []
-  DB.get_top_users(sid, 100).each do |row|
-    if current_member_ids.include?(row['user_id'])
-      active_users << row
-      break if active_users.size >= 10
+  active_humans = []
+  raw_top.each do |row|
+    user_obj = event.bot.user(row['user_id'])
+    # 2. Only add if the user exists and IS NOT a bot
+    if user_obj && !user_obj.bot_account? && event.server.member(user_obj.id)
+      active_humans << row
+      break if active_humans.size >= 10
     end
   end
 
-  if active_users.empty?
-    send_embed(event, title: "#{EMOJIS['crown']} Server Leaderboard", description: 'Nobody has gained any XP here yet.')
+  if active_humans.empty?
+    send_embed(event, title: "#{EMOJIS['crown']} Level Leaderboard", description: 'No humans have gained XP yet!')
   else
-    desc = active_users.each_with_index.map do |row, index|
+    desc = active_humans.each_with_index.map do |row, index|
       user_obj = event.bot.user(row['user_id'])
-      name = user_obj ? user_obj.display_name : "User #{row['user_id']}"
-      "##{index + 1} — **#{name}**: Level #{row['level']} | **#{DB.get_coins(row['user_id'])}** #{EMOJIS['s_coin']}"
+      name = user_obj.display_name
+      "##{index + 1} — **#{name}**: Level #{row['level']} | #{row['xp']} XP"
     end.join("\n")
 
-    send_embed(event, title: "#{EMOJIS['crown']} Server Leaderboard", description: desc)
+    send_embed(event, title: "#{EMOJIS['crown']} Level Leaderboard", description: desc)
   end
   nil
 end
 
-bot.command(:levelup, description: 'Configure where level-up messages go', category: 'Admin') do |event, arg|
+bot.command(:levelup, description: 'Configure where level-up messages go (Admin Only)', category: 'Admin') do |event, arg|
   unless event.user.id == DEV_ID || event.user.permission?(:administrator, event.channel)
     send_embed(event, title: "❌ Access Denied", description: "You need administrator permissions to configure this.")
     next

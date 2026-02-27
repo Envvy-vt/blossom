@@ -11,18 +11,18 @@ require_relative 'data/database' # Load our new SQLite wrapper!
 # =========================
 # 2. DATA STRUCTURES (Memory Only)
 # =========================
-server_bomb_configs = {}
+server_bomb_configs = DB.load_all_bomb_configs
 ACTIVE_BOMBS       = {} 
 ACTIVE_COLLABS     = {}
 ACTIVE_TRADES      = {}
 
 COMMAND_CATEGORIES = {
-  'Economy'   => [:balance, :daily, :work, :stream, :post, :collab, :cooldowns],
+  'Economy'   => [:balance, :daily, :work, :stream, :post, :collab, :cooldowns, :coinlb],
   'Gacha'     => [:summon, :collection, :banner, :shop, :buy, :view, :ascend, :trade],
   'Arcade'    => [:coinflip, :slots, :roulette, :scratch, :dice, :cups],
   'Fun'       => [:kettle, :leaderboard, :hug, :slap, :interactions, :bomb],
   'Utility'   => [:ping, :help, :about, :level],
-  'Developer' => [:addcoins, :setcoins, :setlevel, :addxp, :enablebombs, :disablebombs, :levelup, :blacklist]
+  'Developer' => [:addcoins, :setcoins, :setlevel, :addxp, :enablebombs, :disablebombs, :levelup, :blacklist, :card, :backup]
 }.freeze
 
 def get_cmd_category(cmd_name)
@@ -332,10 +332,41 @@ eval(File.read(File.join(__dir__, 'commands/leveling.rb')), binding)
 bot.ready do
   puts "Blossom is connected and live!"
 
-  # Spin up a background thread to rotate her status every 30 seconds
+  # --- THREAD 1: Automated Daily Database Backup ---
+  Thread.new do
+    storage_server_id  = 1475696989059420162
+    storage_channel_id = 1476943608702832680
+    
+    loop do
+      begin
+        storage_channel = bot.channel(storage_channel_id, storage_server_id)
+        
+        if storage_channel
+          db_file = "blossom.db"
+          if File.exist?(db_file)
+            timestamp = Time.now.strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Send the file with a clear label
+            storage_channel.send_message("📦 **Automated Daily Backup**\nTimestamp: `#{timestamp}`")
+            File.open(db_file, 'rb') { |file| storage_channel.send_file(file) }
+            
+            puts "[SYSTEM] Daily backup sent to storage channel."
+          end
+        else
+          puts "[ERROR] Backup failed: Could not find storage channel."
+        end
+      rescue => e
+        puts "[BACKUP ERROR] #{e.message}"
+      end
+
+      # Wait exactly 24 hours (86,400 seconds)
+      sleep 86400
+    end
+  end
+
+  # --- THREAD 2: Status Rotation ---
   Thread.new do
     loop do
-
       bot.playing = "#{PREFIX}help in the Arcade 🕹️"
       sleep 30
 

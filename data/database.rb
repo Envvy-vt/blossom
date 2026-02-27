@@ -43,6 +43,11 @@ class BotDatabase
     row ? row['total'] : 0
   end
 
+  def get_top_coins(limit = 10)
+  # This grabs users with the most coins from your global_users table
+  @db.execute("SELECT user_id, coins FROM global_users ORDER BY coins DESC LIMIT ?", [limit])
+  end
+
   # =========================
   # COOLDOWNS
   # =========================
@@ -169,6 +174,31 @@ class BotDatabase
     return { channel: nil, enabled: true } unless result
     { channel: result[0], enabled: result[1] == 1 }
   end
+
+  # =========================
+  # BOMB CONFIG
+  # =========================
+
+  def save_bomb_config(sid, enabled, channel_id, threshold, count)
+  @db.execute("CREATE TABLE IF NOT EXISTS server_bombs (server_id INTEGER PRIMARY KEY, enabled INTEGER, channel_id INTEGER, threshold INTEGER, count INTEGER)")
+  @db.execute("INSERT OR REPLACE INTO server_bombs (server_id, enabled, channel_id, threshold, count) VALUES (?, ?, ?, ?, ?)", [sid, enabled ? 1 : 0, channel_id, threshold, count])
+end
+
+def load_all_bomb_configs
+  @db.execute("CREATE TABLE IF NOT EXISTS server_bombs (server_id INTEGER PRIMARY KEY, enabled INTEGER, channel_id INTEGER, threshold INTEGER, count INTEGER)")
+  rows = @db.execute("SELECT * FROM server_bombs")
+  configs = {}
+  rows.each do |row|
+    configs[row['server_id']] = {
+      'enabled' => row['enabled'] == 1,
+      'channel_id' => row['channel_id'],
+      'threshold' => row['threshold'],
+      'message_count' => row['count'], # We load the saved progress
+      'last_user_id' => nil # We don't save this to avoid anti-spam issues on restart
+    }
+  end
+  configs
+end
 
   # =========================
   # BLACKLIST

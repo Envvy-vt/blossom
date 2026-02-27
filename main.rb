@@ -349,6 +349,7 @@ bot.ready do
   puts "Blossom is connected and live!"
 
   # --- THREAD 1: Automated Daily Database Backup ---
+  
   Thread.new do
     storage_server_id  = 1475696989059420162
     storage_channel_id = 1476943608702832680

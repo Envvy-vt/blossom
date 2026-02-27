@@ -4,3 +4,4 @@ gem "discordrb"
 gem "dotenv"
 gem "fiddle"
 gem "colorize"
+gem 'ffi'

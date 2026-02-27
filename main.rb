@@ -1,5 +1,20 @@
+ENV['PATH'] = "#{Dir.pwd};#{ENV['PATH']}"
+
 require 'discordrb'
 require 'dotenv/load'
+
+# Let the bot tell us if it found the engine
+puts "[SYSTEM] Checking voice engine..."
+begin
+  # discordrb tries to load its internal Voice mapping here
+  if defined?(Discordrb::Voice)
+    puts "✅ Voice Engine: Ready"
+  else
+    puts "❌ Voice Engine: Missing (libsodium/sodium.dll not found)"
+  end
+rescue LoadError => e
+  puts "❌ Voice Engine: Load Error - #{e.message}"
+end
 
 # =========================
 # 1. LOAD CONFIG DATA & DATABASE
@@ -309,9 +324,9 @@ end
 # =========================
 
 bot = Discordrb::Commands::CommandBot.new(
-  token:   TOKEN,
-  prefix:  PREFIX,
-  intents: %i[servers server_messages server_members]
+  token: TOKEN,
+  prefix: PREFIX,
+  intents: [:servers, :server_messages, :server_members, :server_voice_states]
 )
 # =========================
 # 6. LOAD COMMANDS
@@ -324,6 +339,7 @@ eval(File.read(File.join(__dir__, 'commands/arcade.rb')), binding)
 eval(File.read(File.join(__dir__, 'commands/trade.rb')), binding)
 eval(File.read(File.join(__dir__, 'commands/developer.rb')), binding)
 eval(File.read(File.join(__dir__, 'commands/leveling.rb')), binding)
+eval(File.read(File.join(__dir__, 'commands/voice.rb')), binding)
 
 # =========================
 # 7. RUN

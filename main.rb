@@ -1,7 +1,23 @@
-ENV['PATH'] = "#{Dir.pwd};#{ENV['PATH']}"
-
 require 'discordrb'
 require 'dotenv/load'
+require 'ffi'
+
+# 1. Add the lib folder to the Windows search path so it finds the helper DLLs
+LIB_DIR = File.join(__dir__, 'lib')
+ENV['PATH'] = "#{LIB_DIR};#{ENV['PATH']}"
+
+# 2. The Voice Bridge
+module RbNaCl
+  module Sodium
+    extend FFI::Library
+    # Point directly to the sodium.dll inside the lib folder
+    ffi_lib File.join(LIB_DIR, 'sodium.dll')
+    attach_function :sodium_init, [], :int
+  end
+end
+
+# Initialize it
+RbNaCl::Sodium.sodium_init
 
 # Let the bot tell us if it found the engine
 puts "[SYSTEM] Checking voice engine..."
@@ -324,7 +340,7 @@ end
 # =========================
 
 bot = Discordrb::Commands::CommandBot.new(
-  token: TOKEN,
+  token: ENV['TOKEN'],
   prefix: PREFIX,
   intents: [:servers, :server_messages, :server_members, :server_voice_states]
 )

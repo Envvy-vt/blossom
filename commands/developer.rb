@@ -1,4 +1,4 @@
-bot.command(:levelup, description: 'Enable or disable level-up messages for this server (Admin only)', category: 'Developer') do |event, state|
+bot.command(:levelup, description: 'Enable or disable level-up messages for this server (Admin only)', category: 'Admin') do |event, state|
   unless event.server
     send_embed(event, title: "#{EMOJIS['developer']} Level-Up Settings", description: 'This command can only be used in a server.')
     next
@@ -26,7 +26,7 @@ bot.command(:levelup, description: 'Enable or disable level-up messages for this
   nil
 end
 
-bot.command(:setlevel, description: 'Set a user\'s server level (Admin Only)', min_args: 2, category: 'Developer') do |event, mention, level|
+bot.command(:setlevel, description: 'Set a user\'s server level (Admin Only)', min_args: 2, category: 'Admin') do |event, mention, level|
   unless event.server
     event.respond("#{EMOJIS['x_']} This command can only be used inside a server!")
     next
@@ -55,7 +55,7 @@ bot.command(:setlevel, description: 'Set a user\'s server level (Admin Only)', m
   nil
 end
 
-bot.command(:addxp, description: 'Add or remove server XP from a user (Admin Only)', min_args: 2, category: 'Developer') do |event, mention, amount|
+bot.command(:addxp, description: 'Add or remove server XP from a user (Admin Only)', min_args: 2, category: 'Admin') do |event, mention, amount|
   unless event.server
     event.respond("#{EMOJIS['x_']} This command can only be used inside a server!")
     next
@@ -137,7 +137,7 @@ bot.command(:setcoins, description: 'Set a user\'s balance to an exact amount (D
   nil
 end
 
-bot.command(:enablebombs, description: 'Enable random bomb drops in a specific channel (Admin Only)', min_args: 1, category: 'Developer') do |event, channel_mention|
+bot.command(:enablebombs, description: 'Enable random bomb drops in a specific channel (Admin Only)', min_args: 1, category: 'Admin') do |event, channel_mention|
   unless event.user.permission?(:administrator, event.channel) || event.user.id == DEV_ID
     event.respond("#{EMOJIS['x_']} You need Administrator permissions to set this up!")
     next
@@ -168,7 +168,7 @@ bot.command(:enablebombs, description: 'Enable random bomb drops in a specific c
   nil
 end
 
-bot.command(:disablebombs, category: 'Developer') do |event|
+bot.command(:disablebombs, category: 'Admin') do |event|
   sid = event.server.id
   if server_bomb_configs[sid]
     server_bomb_configs[sid]['enabled'] = false
@@ -295,4 +295,35 @@ bot.command(:backup, description: 'Developer Only') do |event|
     puts "Backup Error: #{e.message}\n#{e.backtrace.first}"
   end
   nil
+end
+
+bot.command(:givepremium, description: 'Give a user lifetime premium (Dev only)', category: 'Developer') do |event|
+  # Stop anyone who isn't you from using this
+  break unless event.user.id == DEV_ID 
+  
+  target = event.message.mentions.first
+  unless target
+    send_embed(event, title: "❌ Error", description: "Please mention a user to give lifetime premium to!")
+    break
+  end
+
+  DB.set_lifetime_premium(target.id, true)
+  send_embed(
+    event, 
+    title: "✨ Lifetime Premium Granted!", 
+    description: "**#{target.display_name}** has been permanently upgraded!\nThey will now receive the 10% coin boost, half cooldowns, and boosted gacha luck globally."
+  )
+end
+
+bot.command(:removepremium, description: 'Remove lifetime premium (Dev only)', category: 'Developer') do |event|
+  break unless event.user.id == DEV_ID
+  
+  target = event.message.mentions.first
+  unless target
+    send_embed(event, title: "❌ Error", description: "Please mention a user to remove lifetime premium from!")
+    break
+  end
+
+  DB.set_lifetime_premium(target.id, false)
+  send_embed(event, title: "🥀 Premium Revoked", description: "Lifetime Premium has been removed from **#{target.display_name}**.")
 end

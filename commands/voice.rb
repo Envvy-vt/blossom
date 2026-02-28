@@ -1,4 +1,4 @@
-bot.command(:call, description: 'Summon Blossom to your voice channel') do |event|
+bot.command(:call, description: 'Summon Blossom to your voice channel', category: 'Utility') do |event|
   channel = event.user.voice_channel
   
   if channel.nil?
@@ -15,7 +15,7 @@ bot.command(:call, description: 'Summon Blossom to your voice channel') do |even
   end
 end
 
-bot.command(:dismiss, description: 'Make Blossom leave the voice channel') do |event|
+bot.command(:dismiss, description: 'Make Blossom leave the voice channel', category: 'Utility') do |event|
   bot.voice_destroy(event.server.id)
   event.respond "👋 Disconnected from voice."
 end

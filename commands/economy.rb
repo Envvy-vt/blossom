@@ -102,6 +102,7 @@ bot.command(:daily, description: 'Claim your daily coin reward', category: 'Econ
   uid = event.user.id
   now = Time.now
   last_used = DB.get_cooldown(uid, 'daily')
+  is_sub = is_premium?(event.bot, uid)
 
   if last_used && (now - last_used) < DAILY_COOLDOWN
     remaining = DAILY_COOLDOWN - (now - last_used)
@@ -113,23 +114,28 @@ bot.command(:daily, description: 'Claim your daily coin reward', category: 'Econ
     
     if inv['neon sign'] && inv['neon sign'] > 0
       reward *= 2
-      bonus_text = "\n*(✨ Neon Sign Boost: x2 Payout!)*"
+      bonus_text += "\n*(✨ Neon Sign Boost: x2 Payout!)*"
     end
 
-    DB.add_coins(uid, reward)
+    bonus_text += "\n*(💎 Subscriber Bonus: +10%)*" if is_sub
+
+    final_reward = award_coins(event.bot, uid, reward)
     DB.set_cooldown(uid, 'daily', now)
-    send_embed(event, title: "#{EMOJIS['coin']} Daily Reward", description: "You claimed **#{reward}** #{EMOJIS['s_coin']}!#{bonus_text}\nNew balance: **#{DB.get_coins(uid)}**.")
+    send_embed(event, title: "#{EMOJIS['coin']} Daily Reward", description: "You claimed **#{final_reward}** #{EMOJIS['s_coin']}!#{bonus_text}\nNew balance: **#{DB.get_coins(uid)}**.")
   end
   nil
 end
 
-bot.command(:work, description: 'Work for some coins (5min cooldown)', category: 'Economy') do |event|
+bot.command(:work, description: 'Work for some coins', category: 'Economy') do |event|
   uid = event.user.id
   now = Time.now
   last_used = DB.get_cooldown(uid, 'work')
+  is_sub = is_premium?(event.bot, uid)
+  
+  active_cd = is_sub ? (WORK_COOLDOWN / 2) : WORK_COOLDOWN
 
-  if last_used && (now - last_used) < WORK_COOLDOWN
-    remaining = WORK_COOLDOWN - (now - last_used)
+  if last_used && (now - last_used) < active_cd
+    remaining = active_cd - (now - last_used)
     send_embed(event, title: "#{EMOJIS['work']} Work", description: "You are tired #{EMOJIS['worktired']}\nTry working again in **#{format_time_delta(remaining)}**.")
   else
     amount = rand(WORK_REWARD_RANGE)
@@ -138,23 +144,28 @@ bot.command(:work, description: 'Work for some coins (5min cooldown)', category:
 
     if inv['keyboard'] && inv['keyboard'] > 0
       amount = (amount * 1.25).to_i
-      bonus_text = "\n*(⌨️ Keyboard Boost: +25%)*"
+      bonus_text += "\n*(⌨️ Keyboard Boost: +25%)*"
     end
 
-    DB.add_coins(uid, amount)
+    bonus_text += "\n*(💎 Subscriber Bonus: +10%)*" if is_sub
+
+    final_amount = award_coins(event.bot, uid, amount)
     DB.set_cooldown(uid, 'work', now)
-    send_embed(event, title: "#{EMOJIS['work']} Work", description: "You worked hard and earned **#{amount}** #{EMOJIS['s_coin']}!#{bonus_text}\nNew balance: **#{DB.get_coins(uid)}**.")
+    send_embed(event, title: "#{EMOJIS['work']} Work", description: "You worked hard and earned **#{final_amount}** #{EMOJIS['s_coin']}!#{bonus_text}\nNew balance: **#{DB.get_coins(uid)}**.")
   end
   nil
 end
 
-bot.command(:stream, description: 'Go live and earn some coins! (30m cooldown)', category: 'Economy') do |event|
+bot.command(:stream, description: 'Go live and earn some coins!', category: 'Economy') do |event|
   uid = event.user.id
   now = Time.now
   last_used = DB.get_cooldown(uid, 'stream')
+  is_sub = is_premium?(event.bot, uid)
 
-  if last_used && (now - last_used) < STREAM_COOLDOWN
-    remaining = STREAM_COOLDOWN - (now - last_used)
+  active_cd = is_sub ? (STREAM_COOLDOWN / 2) : STREAM_COOLDOWN
+
+  if last_used && (now - last_used) < active_cd
+    remaining = active_cd - (now - last_used)
     send_embed(event, title: "#{EMOJIS['stream']} Stream Offline", description: "You just finished streaming! Your voice needs a break #{EMOJIS['drink']}\nTry going live again in **#{format_time_delta(remaining)}**.")
   else
     reward = rand(STREAM_REWARD_RANGE)
@@ -164,23 +175,28 @@ bot.command(:stream, description: 'Go live and earn some coins! (30m cooldown)',
     
     if inv['mic'] && inv['mic'] > 0
       reward = (reward * 1.10).to_i
-      bonus_text = "\n*(🎙️ Studio Mic Boost: +10%)*"
+      bonus_text += "\n*(🎙️ Studio Mic Boost: +10%)*"
     end
 
-    DB.add_coins(uid, reward)
+    bonus_text += "\n*(💎 Subscriber Bonus: +10%)*" if is_sub
+
+    final_reward = award_coins(event.bot, uid, reward)
     DB.set_cooldown(uid, 'stream', now)
-    send_embed(event, title: "#{EMOJIS['stream']} Stream Ended", description: "You had a great stream playing **#{game}** and earned **#{reward}** #{EMOJIS['s_coin']}!#{bonus_text}\nNew balance: **#{DB.get_coins(uid)}**.")
+    send_embed(event, title: "#{EMOJIS['stream']} Stream Ended", description: "You had a great stream playing **#{game}** and earned **#{final_reward}** #{EMOJIS['s_coin']}!#{bonus_text}\nNew balance: **#{DB.get_coins(uid)}**.")
   end
   nil
 end
 
-bot.command(:post, description: 'Post on social media for some quick coins! (5m cooldown)', category: 'Economy') do |event|
+bot.command(:post, description: 'Post on social media for some quick coins!', category: 'Economy') do |event|
   uid = event.user.id
   now = Time.now
   last_used = DB.get_cooldown(uid, 'post')
+  is_sub = is_premium?(event.bot, uid)
 
-  if last_used && (now - last_used) < POST_COOLDOWN
-    remaining = POST_COOLDOWN - (now - last_used)
+  active_cd = is_sub ? (POST_COOLDOWN / 2) : POST_COOLDOWN
+
+  if last_used && (now - last_used) < active_cd
+    remaining = active_cd - (now - last_used)
     send_embed(event, title: "#{EMOJIS['error']} Social Media Break", description: "You're posting too fast! Don't get shadowbanned #{EMOJIS['nervous']}\nTry posting again in **#{format_time_delta(remaining)}**.")
   else
     reward = rand(POST_REWARD_RANGE)
@@ -190,12 +206,14 @@ bot.command(:post, description: 'Post on social media for some quick coins! (5m 
 
     if inv['headset'] && inv['headset'] > 0
       reward = (reward * 1.25).to_i
-      bonus_text = "\n*(🎧 Headset Boost: +25%)*"
+      bonus_text += "\n*(🎧 Headset Boost: +25%)*"
     end
 
-    DB.add_coins(uid, reward)
+    bonus_text += "\n*(💎 Subscriber Bonus: +10%)*" if is_sub
+
+    final_reward = award_coins(event.bot, uid, reward)
     DB.set_cooldown(uid, 'post', now)
-    send_embed(event, title: "#{EMOJIS['like']} New Post Uploaded!", description: "Your latest post on **#{platform}** got a lot of engagement! You earned **#{reward}** #{EMOJIS['s_coin']}.#{bonus_text}\nNew balance: **#{DB.get_coins(uid)}**.")
+    send_embed(event, title: "#{EMOJIS['like']} New Post Uploaded!", description: "Your latest post on **#{platform}** got a lot of engagement! You earned **#{final_reward}** #{EMOJIS['s_coin']}.#{bonus_text}\nNew balance: **#{DB.get_coins(uid)}**.")
   end
   nil
 end
@@ -257,15 +275,16 @@ bot.button(custom_id: /^collab_/) do |event|
     end
 
     ACTIVE_COLLABS.delete(collab_id)
-    DB.add_coins(author_id, COLLAB_REWARD)
-    DB.add_coins(event.user.id, COLLAB_REWARD)
+    
+    author_final = award_coins(event.bot, author_id, COLLAB_REWARD)
+    user_final = award_coins(event.bot, event.user.id, COLLAB_REWARD)
 
     author_user = event.bot.user(author_id)
     author_mention = author_user ? author_user.mention : "<@#{author_id}>"
 
     success_embed = Discordrb::Webhooks::Embed.new(
       title: "#{EMOJIS['neonsparkle']} Collab Stream Started!",
-      description: "#{event.user.mention} accepted the collab with #{author_mention}!\n\nBoth streamers earned **#{COLLAB_REWARD}** #{EMOJIS['s_coin']} for an awesome stream.",
+      description: "#{event.user.mention} accepted the collab with #{author_mention}!\n\nBoth streamers got a baseline of **#{COLLAB_REWARD}** #{EMOJIS['s_coin']} for an awesome stream! *(Subscribers received a 10% bonus!)*",
       color: 0x00FF00
     )
 
@@ -278,6 +297,7 @@ end
 bot.command(:cooldowns, description: 'Check your active timers for economy commands', category: 'Economy') do |event|
   uid = event.user.id
   inv = DB.get_inventory(uid)
+  is_sub = is_premium?(event.bot, uid)
   
   check_cd = ->(type, cooldown_duration) do
     last_used = DB.get_cooldown(uid, type)
@@ -289,13 +309,16 @@ bot.command(:cooldowns, description: 'Check your active timers for economy comma
     end
   end
 
+  work_cd = is_sub ? (WORK_COOLDOWN / 2) : WORK_COOLDOWN
+  stream_cd = is_sub ? (STREAM_COOLDOWN / 2) : STREAM_COOLDOWN
+  post_cd = is_sub ? (POST_COOLDOWN / 2) : POST_COOLDOWN
   summon_duration = (inv['gacha pass'] && inv['gacha pass'] > 0) ? 300 : 600
 
   cd_fields = [
     { name: '!daily', value: check_cd.call('daily', DAILY_COOLDOWN), inline: true },
-    { name: '!work', value: check_cd.call('work', WORK_COOLDOWN), inline: true },
-    { name: '!stream', value: check_cd.call('stream', STREAM_COOLDOWN), inline: true },
-    { name: '!post', value: check_cd.call('post', POST_COOLDOWN), inline: true },
+    { name: '!work', value: check_cd.call('work', work_cd), inline: true },
+    { name: '!stream', value: check_cd.call('stream', stream_cd), inline: true },
+    { name: '!post', value: check_cd.call('post', post_cd), inline: true },
     { name: '!collab', value: check_cd.call('collab', COLLAB_COOLDOWN), inline: true },
     { name: '!summon', value: check_cd.call('summon', summon_duration), inline: true } 
   ]
@@ -400,11 +423,11 @@ bot.button(custom_id: /^bomb_/) do |event|
   if ACTIVE_BOMBS[bomb_id]
     ACTIVE_BOMBS.delete(bomb_id)
     reward = rand(50..150)
-    DB.add_coins(event.user.id, reward)
+    final_reward = award_coins(event.bot, event.user.id, reward)
 
     defused_embed = Discordrb::Webhooks::Embed.new(
       title: "#{EMOJIS['surprise']} Bomb Defused!",
-      description: "The bomb was successfully defused by #{event.user.mention}!\nThey earned **#{reward}** #{EMOJIS['s_coin']} for their bravery.",
+      description: "The bomb was successfully defused by #{event.user.mention}!\nThey earned **#{final_reward}** #{EMOJIS['s_coin']} for their bravery.",
       color: 0x00FF00 
     )
     event.update_message(content: nil, embeds: [defused_embed], components: Discordrb::Components::View.new)
@@ -416,11 +439,11 @@ end
 bot.button(custom_id: /^defuse_drop_(\d+)$/) do |event|
   uid = event.user.id
   reward = rand(100..500)
-  DB.add_coins(uid, reward)
+  final_reward = award_coins(event.bot, uid, reward)
 
   embed = Discordrb::Webhooks::Embed.new(
     title: "#{EMOJIS['coins']} Bomb Defused!",
-    description: "#{event.user.mention} successfully cut the wire!\nThey looted **#{reward}** #{EMOJIS['s_coin']} from the casing.",
+    description: "#{event.user.mention} successfully cut the wire!\nThey looted **#{final_reward}** #{EMOJIS['s_coin']} from the casing.",
     color: 0x00FF00
   )
   event.update_message(content: nil, embeds: [embed], components: [])

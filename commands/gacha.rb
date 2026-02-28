@@ -7,6 +7,8 @@ bot.command(:summon, description: 'Roll the gacha!', category: 'Gacha') do |even
   now = Time.now
   last_used = DB.get_cooldown(uid, 'summon')
   inv = DB.get_inventory(uid)
+  
+  is_sub = is_premium?(event.bot, uid)
 
   cooldown_duration = (inv['gacha pass'] && inv['gacha pass'] > 0) ? 300 : 600
 
@@ -48,17 +50,28 @@ bot.command(:summon, description: 'Roll the gacha!', category: 'Gacha') do |even
       rarity = :goddess
     end
   else
-    rarity = roll_rarity
+    rarity = roll_rarity(is_sub)
   end
 
   pulled_char = active_banner[:characters][rarity].sample
   name = pulled_char[:name]
   gif_url = pulled_char[:gif]
   
-  DB.add_character(uid, name, rarity.to_s, 1)
+  is_ascended = false
+  if is_sub && rand(100) < 1
+    is_ascended = true
+  end
+
+  if is_ascended
+    DB.add_character(uid, name, rarity.to_s, 5)
+    DB.ascend_character(uid, name)
+  else
+    DB.add_character(uid, name, rarity.to_s, 1)
+  end
   
   user_chars = DB.get_collection(uid)
   new_count = user_chars[name]['count']
+  new_asc_count = user_chars[name]['ascended'].to_i
 
   rarity_label = rarity.to_s.capitalize
   emoji = case rarity
@@ -69,11 +82,20 @@ bot.command(:summon, description: 'Roll the gacha!', category: 'Gacha') do |even
           end
 
   buff_text = used_manipulator ? "\n\n*🔮 RNG Manipulator consumed! Common pulls bypassed.*" : ""
+  
+  desc = "#{emoji} You summoned **#{name}** (#{rarity_label})!\n"
+  
+  if is_ascended
+    buff_text += "\n\n#{EMOJIS['neonsparkle']} **PREMIUM PERK TRIGGERED!**\nYou pulled a **Shiny Ascended** version right out of the portal!"
+    desc += "You now own **#{new_asc_count}** Ascended copies of them.#{buff_text}"
+  else
+    desc += "You now own **#{new_count}** of them.#{buff_text}"
+  end
 
   send_embed(
     event,
     title: "#{EMOJIS['sparkle']} Summon Result: #{active_banner[:name]}",
-    description: "#{emoji} You summoned **#{name}** (#{rarity_label})!\nYou now own **#{new_count}** of them.#{buff_text}",
+    description: desc,
     fields: [
       { name: 'Remaining Balance', value: "#{DB.get_coins(uid)} #{EMOJIS['s_coin']}", inline: true }
     ],

@@ -45,9 +45,10 @@ COMMAND_CATEGORIES = {
   'Economy'   => [:balance, :daily, :work, :stream, :post, :collab, :cooldowns, :coinlb],
   'Gacha'     => [:summon, :collection, :banner, :shop, :buy, :view, :ascend, :trade],
   'Arcade'    => [:coinflip, :slots, :roulette, :scratch, :dice, :cups],
-  'Fun'       => [:kettle, :leaderboard, :hug, :slap, :interactions, :bomb],
-  'Utility'   => [:ping, :help, :about, :level],
-  'Developer' => [:addcoins, :setcoins, :setlevel, :addxp, :enablebombs, :disablebombs, :levelup, :blacklist, :card, :backup]
+  'Fun'       => [:kettle, :leaderboard, :hug, :slap, :interactions],
+  'Utility'   => [:ping, :help, :about, :level, :call, :dismiss],
+  'Admin'   => [:setlevel, :enablebombs, :disablebombs, :levelup, :addxp, :bomb],
+  'Developer' => [:addcoins, :setcoins, :blacklist, :card, :backup, :addpremium, :removepremium]
 }.freeze
 
 def get_cmd_category(cmd_name)
@@ -61,10 +62,15 @@ end
 # BOT HELPERS
 # =========================
 
-def roll_rarity
+def roll_rarity(premium = false)
   roll = rand(100)
+  
+  premium_table = { common: 40, rare: 40, legendary: 15, goddess: 5 }
+  
+  active_table = premium ? premium_table : RARITY_TABLE
+  
   total = 0
-  RARITY_TABLE.each do |(rarity, weight)|
+  active_table.each do |(rarity, weight)|
     total += weight
     return rarity if roll < total
   end
@@ -328,6 +334,35 @@ def build_blackmarket_page(user_id)
 end
 
 # =========================
+# PREMIUM SYSTEM
+# =========================
+
+SUPPORT_SERVER_ID = 1475696989059420162
+PREMIUM_ROLE_ID   = 1477110574419808306
+
+def is_premium?(bot, user_id)
+  return true if DB.is_lifetime_premium?(user_id)
+
+  server = bot.server(SUPPORT_SERVER_ID)
+  return false unless server
+
+  member = server.member(user_id)
+  return false unless member
+
+  member.roles.any? { |role| role.id == PREMIUM_ROLE_ID }
+end
+
+def award_coins(bot, user_id, amount)
+  final_amount = amount
+  
+  final_amount = (amount * 1.10).round if is_premium?(bot, user_id)
+  
+  DB.add_coins(user_id, final_amount)
+  
+  final_amount 
+end
+
+# =========================
 # BOT SETUP
 # =========================
 
@@ -387,21 +422,16 @@ bot.ready do
     end
   end
 
-  Thread.new do
-    loop do
+  loop do
       bot.playing = "#{PREFIX}help in the Arcade 🕹️"
-      sleep 30
+      sleep 15
 
       server_count = bot.servers.size
-      bot.playing = "in #{server_count} servers 🔴| b!"
-      sleep 30
-
-      user_count = DB.get_total_users
-      bot.playing = "with #{user_count} chatters 🎰| b!"
-      sleep 30
+      total_members = bot.servers.values.sum { |server| server.member_count }
+      bot.playing = "with #{total_members} chatters in #{server_count} servers 🔴| b!"
+      sleep 15
     end
   end
-end
 
 DB.get_blacklist.each do |uid|
   bot.ignore_user(uid)

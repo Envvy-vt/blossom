@@ -193,13 +193,14 @@ def load_all_bomb_configs
   rows = @db.execute("SELECT * FROM server_bombs")
   configs = {}
   rows.each do |row|
-    configs[row['server_id']] = {
-      'enabled' => row['enabled'] == 1,
-      'channel_id' => row['channel_id'],
-      'threshold' => row['threshold'],
-      'message_count' => row['count'],
-      'last_user_id' => nil
-  end
+      configs[row['server_id']] = {
+        'enabled' => row['enabled'] == 1,
+        'channel_id' => row['channel_id'],
+        'threshold' => row['threshold'],
+        'message_count' => row['count'],
+        'last_user_id' => nil
+      }
+    end
   configs
 end
 
@@ -223,5 +224,25 @@ end
   end
 
 end
+
+  # =========================
+  # LIFETIME PREMIUM
+  # =========================
+  public
+  
+  def set_lifetime_premium(uid, status)
+    @db.execute("CREATE TABLE IF NOT EXISTS lifetime_premium (user_id INTEGER PRIMARY KEY)")
+    if status
+      @db.execute("INSERT OR IGNORE INTO lifetime_premium (user_id) VALUES (?)", [uid])
+    else
+      @db.execute("DELETE FROM lifetime_premium WHERE user_id = ?", [uid])
+    end
+  end
+
+  def is_lifetime_premium?(uid)
+    @db.execute("CREATE TABLE IF NOT EXISTS lifetime_premium (user_id INTEGER PRIMARY KEY)")
+    row = @db.get_first_row("SELECT user_id FROM lifetime_premium WHERE user_id = ?", [uid])
+    !row.nil?
+  end
 
 DB = BotDatabase.new

@@ -65,7 +65,7 @@ end
 def roll_rarity(premium = false)
   roll = rand(100)
   
-  premium_table = { common: 40, rare: 40, legendary: 15, goddess: 5 }
+  premium_table = { common: 42, rare: 41, legendary: 15, goddess: 2 }
   
   active_table = premium ? premium_table : RARITY_TABLE
   

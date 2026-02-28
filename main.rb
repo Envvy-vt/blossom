@@ -45,10 +45,10 @@ COMMAND_CATEGORIES = {
   'Economy'   => [:balance, :daily, :work, :stream, :post, :collab, :cooldowns, :coinlb],
   'Gacha'     => [:summon, :collection, :banner, :shop, :buy, :view, :ascend, :trade],
   'Arcade'    => [:coinflip, :slots, :roulette, :scratch, :dice, :cups],
-  'Fun'       => [:kettle, :leaderboard, :hug, :slap, :interactions],
-  'Utility'   => [:ping, :help, :about, :level, :call, :dismiss],
+  'Fun'       => [:kettle, :level, :leaderboard, :hug, :slap, :interactions],
+  'Utility'   => [:ping, :help, :about, :support, :premium, :call, :dismiss],
   'Admin'   => [:setlevel, :enablebombs, :disablebombs, :levelup, :addxp, :bomb],
-  'Developer' => [:addcoins, :setcoins, :blacklist, :card, :backup, :addpremium, :removepremium]
+  'Developer' => [:addcoins, :setcoins, :blacklist, :card, :backup, :givepremium, :removepremium]
 }.freeze
 
 def get_cmd_category(cmd_name)
@@ -337,19 +337,26 @@ end
 # PREMIUM SYSTEM
 # =========================
 
-SUPPORT_SERVER_ID = 1475696989059420162
-PREMIUM_ROLE_ID   = 1477110574419808306
+# Server IDs => Role IDs 
+PREMIUM_SERVERS = {
+  1475696989059420162 => 1477110574419808306,
+  1472509438010065070 => 1477179978004041788  
+}
 
 def is_premium?(bot, user_id)
   return true if DB.is_lifetime_premium?(user_id)
 
-  server = bot.server(SUPPORT_SERVER_ID)
-  return false unless server
+  PREMIUM_SERVERS.each do |server_id, role_id|
+    server = bot.server(server_id)
+    next unless server
 
-  member = server.member(user_id)
-  return false unless member
+    member = server.member(user_id)
+    next unless member
 
-  member.roles.any? { |role| role.id == PREMIUM_ROLE_ID }
+    return true if member.roles.any? { |role| role.id == role_id }
+  end
+
+  false
 end
 
 def award_coins(bot, user_id, amount)

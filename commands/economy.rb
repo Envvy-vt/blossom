@@ -87,12 +87,22 @@ bot.command(:balance, description: 'Show a user\'s coin balance, gacha stats, an
     fields << { name: '💎 Goddess', value: "Owned: **#{goddess_owned} / #{TOTAL_UNIQUE_CHARS['goddess']}**\nAscended: **#{goddess_asc}** #{EMOJIS['neonsparkle']}", inline: true }
   end
 
-  dev_badge = (uid == DEV_ID) ? "\n\n#{EMOJIS['developer']} **Verified Bot Developer**" : ""
+  is_sub = is_premium?(event.bot, uid)
+  
+  badges = ""
+  if uid == DEV_ID
+    badges += "\n\n#{EMOJIS['developer']} **Verified Bot Developer**"
+  end
+  
+  if is_sub
+    spacing = (uid == DEV_ID) ? "\n" : "\n\n"
+    badges += "#{spacing}💎 **Active Subscriber**"
+  end
 
   send_embed(
     event,
     title: "#{target_user.display_name}'s Profile",
-    description: "Here are #{target_user.display_name}'s current economy and gacha stats!#{dev_badge}",
+    description: "Here are #{target_user.display_name}'s current economy and gacha stats!#{badges}",
     fields: fields
   )
   nil

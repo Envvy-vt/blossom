@@ -93,7 +93,7 @@ bot.member_leave do |event|
   DB.remove_user_xp(event.server.id, event.user.id)
 end
 
-bot.command(:level, description: 'Show a user\'s level and XP for this server', category: 'Utility') do |event|
+bot.command(:level, description: 'Show a user\'s level and XP for this server', category: 'Fun') do |event|
   unless event.server
     event.respond("#{EMOJIS['x_']} This command can only be used in a server!")
     next

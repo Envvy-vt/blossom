@@ -167,3 +167,29 @@ bot.command(:interactions, description: 'Show your hug/slap stats', category: 'F
   )
   nil
 end
+
+bot.command(:support, description: 'Get a link to the official support server', category: 'Utility') do |event|
+  send_embed(
+    event,
+    title: "🛠️ Support Server",
+    description: "Need assistance, have questions, or want to report a bug?\nJoin the official Blossom Support Server here:\n\n**https://discord.gg/nGGcNS6gNW**"
+  )
+  nil
+end
+
+bot.command(:premium, description: 'View the benefits of Blossom Premium!', category: 'Utility') do |event|
+  desc = "Support Blossom's development and unlock amazing global perks!\n\n"
+  desc += "**💎 Premium Bonuses:**\n"
+  desc += "⏱️ **50% Faster Cooldowns** on `!work`, `!stream`, and `!post`\n"
+  desc += "💰 **+10% Coin Boost** from all sources (daily, work, streams, bombs, collabs!)\n"
+  desc += "🍀 **Boosted Gacha Odds** (Much higher chance to pull Rares, Legendaries, and Goddesses)\n"
+  desc += "✨ **1% Secret Chance** to instantly pull a Shiny Ascended character from the portal!\n\n"
+  desc += "To unlock these perks, join the Support Server and subscribe via the Server Shop:\n**https://discord.gg/nGGcNS6gNW**"
+
+  send_embed(
+    event,
+    title: "💎 Blossom Premium",
+    description: desc
+  )
+  nil
+end

@@ -28,7 +28,6 @@ bot.command(:help, description: 'Shows a paginated list of all available command
   nil
 end
 
-# Listener for the help menu pagination buttons
 bot.button(custom_id: /^helpnav_(\d+)_(\d+)$/) do |event|
   match_data = event.custom_id.match(/^helpnav_(\d+)_(\d+)$/)
   target_uid  = match_data[1].to_i
@@ -87,7 +86,6 @@ bot.command(:hug, description: 'Send a hug with a random GIF', category: 'Fun') 
   target = event.message.mentions.first
   
   if target && target.id == event.bot.profile.id
-    # Double DB update
     DB.add_interaction(event.user.id, 'hug', 'sent')
     DB.add_interaction(target.id, 'hug', 'received')
     DB.add_interaction(target.id, 'hug', 'sent')
@@ -106,7 +104,7 @@ bot.command(:hug, description: 'Send a hug with a random GIF', category: 'Fun') 
       title: "🫂 Hugs for Blossom!",
       description: "Aww, thanks for the love, #{event.user.mention}! Chat's been crazy today, I needed that.\n\n*Blossom hugs you back tightly!*",
       fields: fields,
-      image: HUG_GIFS.sample # <--- Now she sends a GIF back!
+      image: HUG_GIFS.sample
     )
   else
     interaction_embed(event, 'hug', HUG_GIFS)
@@ -118,7 +116,6 @@ bot.command(:slap, description: 'Send a playful slap with a random GIF', categor
   target = event.message.mentions.first
   
   if target && target.id == event.bot.profile.id
-    # Double DB update
     DB.add_interaction(event.user.id, 'slap', 'sent')
     DB.add_interaction(target.id, 'slap', 'received')
     DB.add_interaction(target.id, 'slap', 'sent')
@@ -137,7 +134,7 @@ bot.command(:slap, description: 'Send a playful slap with a random GIF', categor
       title: "💢 Bot Abuse Detected!",
       description: "Hey! #{event.user.mention} just slapped me?! Chat, clip that! That is literal bot abuse.\n\n*Blossom smacks you right back!*",
       fields: fields,
-      image: SLAP_GIFS.sample # <--- Now she sends a GIF back!
+      image: SLAP_GIFS.sample
     )
   else
     interaction_embed(event, 'slap', SLAP_GIFS)

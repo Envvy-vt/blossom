@@ -362,12 +362,10 @@ bot.message do |event|
 
   uid = event.author.id
 
-  # Anti-spam: Only count message if it's a different person from the last message
   if config['last_user_id'] != uid
     config['message_count'] += 1
     config['last_user_id'] = uid
 
-    # PERSISTENCE: Save progress to the DB
     DB.save_bomb_config(sid, true, config['channel_id'], config['threshold'], config['message_count'])
 
     if config['message_count'] >= config['threshold']
@@ -387,12 +385,10 @@ bot.message do |event|
         target_channel.send_message(nil, false, embed, nil, nil, nil, view)
       end
 
-      # Reset logic
       config['message_count'] = 0
       config['last_user_id'] = nil
       config['threshold'] = rand(BOMB_MIN_MESSAGES..BOMB_MAX_MESSAGES)
       
-      # PERSISTENCE: Save the reset state to the DB
       DB.save_bomb_config(sid, true, config['channel_id'], config['threshold'], 0)
     end
   end
@@ -431,8 +427,6 @@ bot.button(custom_id: /^defuse_drop_(\d+)$/) do |event|
 end
 
 bot.command(:coinlb, description: 'Show the richest users globally', category: 'Economy') do |event|
-  # 1. Fetch top users by coins (we'll grab 50 to filter bots)
-  # NOTE: You'll need a DB method for this, see Step 3 below!
   raw_top = DB.get_top_coins(50) 
 
   active_humans = []

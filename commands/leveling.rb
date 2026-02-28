@@ -24,7 +24,6 @@ bot.message do |event|
     new_xp -= needed
     new_level += 1
 
-    # 1. EXCLUSIVE SERVER ROLE LOGIC
     if sid == 1472509438010065070
       member = event.server.member(uid)
       
@@ -62,7 +61,6 @@ bot.message do |event|
       end
     end
 
-    # 2. LEVEL UP MESSAGE ROUTING
     config = DB.get_levelup_config(sid)
 
     if config[:enabled]
@@ -129,13 +127,11 @@ bot.command(:leaderboard, description: 'Show top users by level for this server'
   end
 
   sid = event.server.id
-  # 1. Fetch a larger pool so we have room to filter out bots
   raw_top = DB.get_top_users(sid, 50) 
   
   active_humans = []
   raw_top.each do |row|
     user_obj = event.bot.user(row['user_id'])
-    # 2. Only add if the user exists and IS NOT a bot
     if user_obj && !user_obj.bot_account? && event.server.member(user_obj.id)
       active_humans << row
       break if active_humans.size >= 10

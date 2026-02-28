@@ -3,7 +3,6 @@ require 'sqlite3'
 
 puts "Starting database migration..."
 
-# 1. Open the JSON file
 if !File.exist?('bot_data.json')
   puts "ERROR: bot_data.json not found!"
   exit
@@ -11,11 +10,9 @@ end
 
 raw_data = JSON.parse(File.read('bot_data.json'))
 
-# 2. Create and connect to the new SQLite database
 db = SQLite3::Database.new("blossom.db")
 db.results_as_hash = true
 
-# 3. Build the Tables
 puts "Building database tables..."
 db.execute <<-SQL
   CREATE TABLE IF NOT EXISTS global_users (
@@ -71,14 +68,11 @@ db.execute <<-SQL
   );
 SQL
 
-# 4. Import the Data!
 puts "Importing Economy & Cooldowns..."
-# Ensure all users with coins have a row
 (raw_data['coins'] || {}).each do |uid, amount|
   db.execute("INSERT OR IGNORE INTO global_users (user_id, coins) VALUES (?, ?)", [uid.to_i, amount.to_i])
 end
 
-# Add cooldowns to those rows
 (raw_data['economy_cooldowns'] || {}).each do |uid, cds|
   db.execute(
     "UPDATE global_users SET daily_at = ?, work_at = ?, stream_at = ?, post_at = ?, collab_at = ? WHERE user_id = ?", 

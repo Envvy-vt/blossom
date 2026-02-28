@@ -7,7 +7,6 @@ bot.command(:call, description: 'Summon Blossom to your voice channel') do |even
   end
 
   begin
-    # This triggers the actual encryption handshake
     bot.voice_connect(channel)
     event.respond "🔊 **Connected to #{channel.name}!** I'm ready to listen (or play audio later)."
   rescue => e

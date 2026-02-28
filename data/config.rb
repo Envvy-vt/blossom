@@ -7,17 +7,15 @@ PREFIX = 'b!'
 DEV_ID = 1398450651297747065
 
 XP_PER_MESSAGE   = 5
-MESSAGE_COOLDOWN = 10 # seconds
+MESSAGE_COOLDOWN = 10 
 SUMMON_COST      = 100
 
-# Direct Buy Prices
 SHOP_PRICES = {
   'common'    => 1_000,
   'rare'      => 5_000,
   'legendary' => 25_000
 }.freeze
 
-# Duplicate Sell Values (10% of buy price)
 SELL_PRICES = {
   'common'    => 50,
   'rare'      => 250,
@@ -25,15 +23,14 @@ SELL_PRICES = {
   'goddess'   => 5_000
 }.freeze
 
-# --- ECONOMY CONFIGS ---
 DAILY_REWARD      = 500
-DAILY_COOLDOWN    = 24 * 60 * 60 # 24 hours
+DAILY_COOLDOWN    = 24 * 60 * 60
 
 WORK_REWARD_RANGE = (50..100)
-WORK_COOLDOWN     = 60 * 10 # 10 minutes
+WORK_COOLDOWN     = 60 * 10
 
 STREAM_REWARD_RANGE = (100..200)
-STREAM_COOLDOWN     = 30 * 60 # 30 minutes
+STREAM_COOLDOWN     = 30 * 60
 STREAM_GAMES = [
   'Minecraft', 'Valorant', 'Just Chatting', 'Apex Legends',
   'Lethal Company', 'Elden Ring', 'Genshin Impact', 'Phasmophobia',
@@ -41,18 +38,17 @@ STREAM_GAMES = [
 ].freeze
 
 POST_REWARD_RANGE = (20..50)
-POST_COOLDOWN     = 5 * 60 # 5 minutes
+POST_COOLDOWN     = 5 * 60
 POST_PLATFORMS = [
   'Twitter/X', 'TikTok', 'Instagram', 'YouTube Shorts', 
   'Bluesky', 'Threads', 'Reddit'
 ].freeze
 
 COLLAB_REWARD   = 200
-COLLAB_COOLDOWN = 30 * 60 # 30 minutes
+COLLAB_COOLDOWN = 30 * 60
 
 COINS_PER_MESSAGE = 5
 
-# --- BLACK MARKET CONFIG ---
 BLACK_MARKET_ITEMS = {
   'headset' => { name: '🎧 Cheap Headset', price: 500, type: 'upgrade', desc: 'Better audio! Grants +25% to !post payouts.' },
   'keyboard' => { name: '⌨️ RGB Keyboard', price: 2000, type: 'upgrade', desc: 'Type at the speed of light! Grants +25% to !work payouts.' },
@@ -64,7 +60,6 @@ BLACK_MARKET_ITEMS = {
   'rng manipulator' => { name: '🔮 RNG Manipulator', price: 5000, type: 'consumable', desc: 'Guarantees your next !summon is a Rare or higher!' }
 }.freeze
 
-# --- MINIGAME CONFIGS ---
 BOMB_MIN_MESSAGES = 10
 BOMB_MAX_MESSAGES = 20
 

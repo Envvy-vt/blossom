@@ -2,27 +2,21 @@ require 'discordrb'
 require 'dotenv/load'
 require 'ffi'
 
-# 1. Add the lib folder to the Windows search path so it finds the helper DLLs
 LIB_DIR = File.join(__dir__, 'lib')
 ENV['PATH'] = "#{LIB_DIR};#{ENV['PATH']}"
 
-# 2. The Voice Bridge
 module RbNaCl
   module Sodium
     extend FFI::Library
-    # Point directly to the sodium.dll inside the lib folder
     ffi_lib File.join(LIB_DIR, 'sodium.dll')
     attach_function :sodium_init, [], :int
   end
 end
 
-# Initialize it
 RbNaCl::Sodium.sodium_init
 
-# Let the bot tell us if it found the engine
 puts "[SYSTEM] Checking voice engine..."
 begin
-  # discordrb tries to load its internal Voice mapping here
   if defined?(Discordrb::Voice)
     puts "✅ Voice Engine: Ready"
   else
@@ -33,14 +27,14 @@ rescue LoadError => e
 end
 
 # =========================
-# 1. LOAD CONFIG DATA & DATABASE
+# LOAD CONFIG DATA & DATABASE
 # =========================
 require_relative 'data/config'
 require_relative 'data/pools'
-require_relative 'data/database' # Load our new SQLite wrapper!
+require_relative 'data/database'
 
 # =========================
-# 2. DATA STRUCTURES (Memory Only)
+# DATA STRUCTURES
 # =========================
 server_bomb_configs = DB.load_all_bomb_configs
 ACTIVE_BOMBS       = {} 
@@ -64,7 +58,7 @@ def get_cmd_category(cmd_name)
 end
 
 # =========================
-# 3. BOT HELPERS
+# BOT HELPERS
 # =========================
 
 def roll_rarity
@@ -121,11 +115,9 @@ def interaction_embed(event, action_name, gifs)
   actor_id  = event.user.id
   target_id = target.id
 
-  # Update the database
   DB.add_interaction(actor_id, action_name, 'sent')
   DB.add_interaction(target_id, action_name, 'received')
 
-  # Fetch the updated stats
   actor_stats  = DB.get_interactions(actor_id)[action_name]
   target_stats = DB.get_interactions(target_id)[action_name]
 
@@ -336,7 +328,7 @@ def build_blackmarket_page(user_id)
 end
 
 # =========================
-# 5. BOT SETUP
+# BOT SETUP
 # =========================
 
 bot = Discordrb::Commands::CommandBot.new(
@@ -345,7 +337,7 @@ bot = Discordrb::Commands::CommandBot.new(
   intents: [:servers, :server_messages, :server_members, :server_voice_states]
 )
 # =========================
-# 6. LOAD COMMANDS
+# LOAD COMMANDS
 # =========================
 
 eval(File.read(File.join(__dir__, 'commands/basic.rb')), binding)
@@ -358,13 +350,11 @@ eval(File.read(File.join(__dir__, 'commands/leveling.rb')), binding)
 eval(File.read(File.join(__dir__, 'commands/voice.rb')), binding)
 
 # =========================
-# 7. RUN
+# RUN
 # =========================
 
 bot.ready do
   puts "Blossom is connected and live!"
-
-  # --- THREAD 1: Automated Daily Database Backup ---
   
   Thread.new do
     storage_server_id  = 1475696989059420162
@@ -397,7 +387,6 @@ bot.ready do
     end
   end
 
-  # --- THREAD 2: Status Rotation ---
   Thread.new do
     loop do
       bot.playing = "#{PREFIX}help in the Arcade 🕹️"
@@ -414,7 +403,6 @@ bot.ready do
   end
 end
 
-# Pulls every banned ID from the database and tells the bot to ignore them
 DB.get_blacklist.each do |uid|
   bot.ignore_user(uid)
 end

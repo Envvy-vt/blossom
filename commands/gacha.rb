@@ -8,7 +8,6 @@ bot.command(:summon, description: 'Roll the gacha!', category: 'Gacha') do |even
   last_used = DB.get_cooldown(uid, 'summon')
   inv = DB.get_inventory(uid)
 
-  # Check if they own the Gacha Pass (300s = 5m, otherwise 600s = 10m)
   cooldown_duration = (inv['gacha pass'] && inv['gacha pass'] > 0) ? 300 : 600
 
   if last_used && (now - last_used) < cooldown_duration
@@ -58,7 +57,6 @@ bot.command(:summon, description: 'Roll the gacha!', category: 'Gacha') do |even
   
   DB.add_character(uid, name, rarity.to_s, 1)
   
-  # Fetch their updated count
   user_chars = DB.get_collection(uid)
   new_count = user_chars[name]['count']
 
@@ -82,7 +80,6 @@ bot.command(:summon, description: 'Roll the gacha!', category: 'Gacha') do |even
     image: gif_url
   )
 
-  # Save the exact time they summoned to the database!
   DB.set_cooldown(uid, 'summon', now)
   nil
 end
@@ -92,7 +89,6 @@ def get_collection_pages(uid)
   
   grouped = { 'common' => [], 'rare' => [], 'legendary' => [], 'goddess' => [] }
   user_collection.each do |name, data|
-    # Force the counts to integers using .to_i
     count = data['count'].to_i
     ascended = data['ascended'].to_i
     
@@ -112,7 +108,6 @@ def get_collection_pages(uid)
     chars = grouped[rarity]
     owned = chars.size
     total = TOTAL_UNIQUE_CHARS[rarity] || 0
-    # Recalculate the sum of ascended characters for the header
     asc_total = chars.count { |c| c[:ascended] > 0 }
     
     emoji = case rarity
@@ -130,7 +125,6 @@ def get_collection_pages(uid)
       chars.sort_by! { |c| c[:name] }
       chars.each do |c|
         if c[:ascended] > 0
-          # We check if they have base copies too
           extra_dupes = c[:count] > 0 ? " | Base: #{c[:count]}" : ""
           page_text += "> **#{c[:name]}** ✨ (Ascended: #{c[:ascended]}#{extra_dupes})\n"
         else
@@ -149,7 +143,6 @@ bot.command(:collection, description: 'View all the characters you own', categor
   uid = target_user.id
   title = "📚 #{target_user.display_name}'s Character Collection"
 
-  # FIX: Make sure this says get_collection_pages
   pages = get_collection_pages(uid)
   
   rarity_names = ["Commons", "Rares", "Legendaries", "Goddess"]
@@ -478,7 +471,6 @@ end
 # COLLECTION PAGINATION LISTENER
 # =========================
 
-# Safely listens for any button ID starting with 'col_'
 bot.button(custom_id: /^col_/) do |event|
   _, uid_str, page_str = event.custom_id.split('_')
   uid = uid_str.to_i
@@ -486,10 +478,8 @@ bot.button(custom_id: /^col_/) do |event|
   
   title = event.message.embeds.first.title
   
-  # FIX: Call the new method name here!
   pages = get_collection_pages(uid)
   
-  # Safety bounds check
   target_page = 0 if target_page < 0
   target_page = pages.size - 1 if target_page >= pages.size
 

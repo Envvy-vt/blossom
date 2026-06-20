@@ -110,6 +110,22 @@ rescue => e
   puts "[CREW BONUS ERROR] #{e.message}"
 end
 
+# True when /daily (and remindme pings) may fire — same rolling window as the daily command.
+def daily_cooldown_ready?(last_used, now = Time.now)
+  return true unless last_used
+
+  last = last_used.is_a?(Time) ? last_used : Time.parse(last_used.to_s)
+  (now - last) >= DAILY_COOLDOWN
+end
+
+def daily_cooldown_remaining(last_used, now = Time.now)
+  return 0 unless last_used
+
+  last = last_used.is_a?(Time) ? last_used : Time.parse(last_used.to_s)
+  rem = DAILY_COOLDOWN - (now - last)
+  rem.positive? ? rem : 0
+end
+
 # Daily streak: >48h gap normally resets; subscribers with /autoclaim on keep once per ISO week via insurance.
 def resolve_daily_streak(bot, uid, last_used, now, current_streak)
   if last_used.nil? || (now - last_used) > (DAILY_COOLDOWN * 2)

@@ -182,8 +182,8 @@ $bot.ready do |event|
           last_used = ctx['at']
           current_streak = ctx['streak'].to_i
 
-          # Verify cooldown is actually up
-          next if last_used && (now - last_used) < DAILY_COOLDOWN
+          # Verify cooldown is actually up (same helper as /daily and remindme)
+          next unless daily_cooldown_ready?(last_used, now)
 
           new_streak, streak_kind = resolve_daily_streak(event.bot, uid, last_used, now, current_streak)
           streak_note = streak_kind == :insurance ? "\n*(Subscriber Streak Guard saved your streak!)*" : ""

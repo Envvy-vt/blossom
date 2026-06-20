@@ -54,11 +54,15 @@ module DatabaseCooldowns
 
   # --- DAILY REMINDERS ---
   def get_pending_daily_reminders
-    query = "SELECT user_id, reminder_channel FROM global_users 
-             WHERE reminder_channel IS NOT NULL 
-             AND reminder_sent = 0 
-             AND daily_at <= NOW() - INTERVAL '24 hours'"
-    @db.exec(query).to_a
+    rows = @db.exec(
+      "SELECT user_id, reminder_channel, daily_at FROM global_users
+       WHERE reminder_channel IS NOT NULL
+       AND reminder_sent = 0"
+    ).to_a
+
+    now = Time.now
+    rows.select { |row| daily_cooldown_ready?(row['daily_at'], now) }
+        .map { |row| { 'user_id' => row['user_id'], 'reminder_channel' => row['reminder_channel'] } }
   end
 
   def mark_reminder_sent(uid)
@@ -115,9 +119,13 @@ module DatabaseCooldowns
   end
 
   def get_autoclaim_users
-    @db.exec(
-      "SELECT user_id FROM global_users WHERE autoclaim_daily = 1 AND (daily_at IS NULL OR daily_at <= NOW() - INTERVAL '24 hours')"
+    rows = @db.exec(
+      "SELECT user_id, daily_at FROM global_users WHERE autoclaim_daily = 1"
     ).to_a
+
+    now = Time.now
+    rows.select { |row| daily_cooldown_ready?(row['daily_at'], now) }
+        .map { |row| { 'user_id' => row['user_id'] } }
   end
 
   # One round-trip: daily row + marriage + neon sign inventory (autoclaim path).

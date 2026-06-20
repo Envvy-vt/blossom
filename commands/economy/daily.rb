@@ -58,8 +58,8 @@ def execute_daily(event)
   current_streak = daily_info['streak'].to_i
 
   # Cooldown check (24-hour gate)
-  if last_used && (now - last_used) < DAILY_COOLDOWN
-    remaining = DAILY_COOLDOWN - (now - last_used)
+  unless daily_cooldown_ready?(last_used, now)
+    remaining = daily_cooldown_remaining(last_used, now)
 
     # Show calendar even on cooldown
     claimed_days = DB.get_calendar_claims(uid, today.year, today.month)

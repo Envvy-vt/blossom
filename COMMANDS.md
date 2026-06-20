@@ -290,7 +290,7 @@ Toggle daily reward reminder notifications. Available to all users.
 |--------|-------|
 | **Aliases** | `remind` |
 
-When enabled, Blossom will ping you in the channel when your daily reward is ready to claim.
+When enabled, Blossom pings you in that channel when your **rolling 24-hour** daily cooldown ends (same timing as `/daily` and `/cooldowns` — not calendar midnight).
 
 ---
 
